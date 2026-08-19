@@ -9,18 +9,23 @@ import { Modal, Button } from "../components/ui";
 export default function CloseShiftModal({
   shift,
   summary,
+  blind = false,
   onClose,
   onClosed,
 }: {
   shift: Shift;
   summary: ShiftSummary;
+  blind?: boolean;
   onClose: () => void;
   onClosed: () => void;
 }) {
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
   const closeShift = useShiftStore((s) => s.closeShift);
-  const [countedCash, setCountedCash] = useState(summary.expectedCash.toFixed(2));
-  const [countedGcash, setCountedGcash] = useState(summary.expectedGcash.toFixed(2));
+  // In blind mode, don't pre-fill the count with the expected amount — that
+  // would defeat the point of a blind count just as much as showing the
+  // number outright, since the cashier could simply leave it untouched.
+  const [countedCash, setCountedCash] = useState(blind ? "" : summary.expectedCash.toFixed(2));
+  const [countedGcash, setCountedGcash] = useState(blind ? "" : summary.expectedGcash.toFixed(2));
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,48 +48,60 @@ export default function CloseShiftModal({
   return (
     <Modal open onClose={onClose} title="Close Shift · Cash Count">
       <div className="space-y-4">
-        <div className="rounded-lg bg-coffee-50 p-3 text-sm space-y-1">
-          <div className="flex justify-between text-coffee-600">
-            <span>Orders</span>
-            <span>{summary.orderCount}</span>
+        {blind ? (
+          <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3">
+            Count your cash and GCash drawer and enter the totals below. Your manager will
+            review against sales after closing.
           </div>
-          <div className="flex justify-between text-coffee-600">
-            <span>Net Sales</span>
-            <span>{formatMoney(summary.netSales, symbol)}</span>
+        ) : (
+          <div className="rounded-lg bg-coffee-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between text-coffee-600">
+              <span>Orders</span>
+              <span>{summary.orderCount}</span>
+            </div>
+            <div className="flex justify-between text-coffee-600">
+              <span>Net Sales</span>
+              <span>{formatMoney(summary.netSales, symbol)}</span>
+            </div>
+            <div className="flex justify-between text-coffee-600">
+              <span>Starting Cash</span>
+              <span>{formatMoney(shift.startingCash, symbol)}</span>
+            </div>
           </div>
-          <div className="flex justify-between text-coffee-600">
-            <span>Starting Cash</span>
-            <span>{formatMoney(shift.startingCash, symbol)}</span>
-          </div>
-        </div>
+        )}
 
         <div>
           <div className="flex justify-between items-baseline mb-1">
             <label className="text-xs font-medium text-coffee-500">
               Counted Cash
             </label>
-            <span className="text-xs text-coffee-400">
-              Expected {formatMoney(summary.expectedCash, symbol)}
-            </span>
+            {!blind && (
+              <span className="text-xs text-coffee-400">
+                Expected {formatMoney(summary.expectedCash, symbol)}
+              </span>
+            )}
           </div>
           <input
             type="number"
             inputMode="decimal"
+            placeholder={blind ? "0.00" : undefined}
             value={countedCash}
             onChange={(e) => setCountedCash(e.target.value)}
             className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           />
-          <div
-            className={`text-xs font-medium mt-1 ${
-              Math.abs(cashVariance) < 0.01
-                ? "text-emerald-600"
-                : cashVariance > 0
-                  ? "text-amber-600"
-                  : "text-red-600"
-            }`}
-          >
-            Variance: {formatMoney(cashVariance, symbol)}
-          </div>
+          {!blind && (
+            <div
+              className={`text-xs font-medium mt-1 ${
+                Math.abs(cashVariance) < 0.01
+                  ? "text-emerald-600"
+                  : cashVariance > 0
+                    ? "text-amber-600"
+                    : "text-red-600"
+              }`}
+            >
+              Variance: {formatMoney(cashVariance, symbol)}
+            </div>
+          )}
         </div>
 
         <div>
@@ -92,28 +109,33 @@ export default function CloseShiftModal({
             <label className="text-xs font-medium text-coffee-500">
               Counted GCash
             </label>
-            <span className="text-xs text-coffee-400">
-              Expected {formatMoney(summary.expectedGcash, symbol)}
-            </span>
+            {!blind && (
+              <span className="text-xs text-coffee-400">
+                Expected {formatMoney(summary.expectedGcash, symbol)}
+              </span>
+            )}
           </div>
           <input
             type="number"
             inputMode="decimal"
+            placeholder={blind ? "0.00" : undefined}
             value={countedGcash}
             onChange={(e) => setCountedGcash(e.target.value)}
             className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           />
-          <div
-            className={`text-xs font-medium mt-1 ${
-              Math.abs(gcashVariance) < 0.01
-                ? "text-emerald-600"
-                : gcashVariance > 0
-                  ? "text-amber-600"
-                  : "text-red-600"
-            }`}
-          >
-            Variance: {formatMoney(gcashVariance, symbol)}
-          </div>
+          {!blind && (
+            <div
+              className={`text-xs font-medium mt-1 ${
+                Math.abs(gcashVariance) < 0.01
+                  ? "text-emerald-600"
+                  : gcashVariance > 0
+                    ? "text-amber-600"
+                    : "text-red-600"
+              }`}
+            >
+              Variance: {formatMoney(gcashVariance, symbol)}
+            </div>
+          )}
         </div>
 
         <div>

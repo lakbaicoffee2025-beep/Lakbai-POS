@@ -4,9 +4,11 @@ import IngredientsTab from "./IngredientsTab";
 import SuppliersTab from "./SuppliersTab";
 import PurchaseOrdersTab from "./PurchaseOrdersTab";
 import MovementLogTab from "./MovementLogTab";
+import DailyCountTab from "./DailyCountTab";
 
 const TABS = [
   { key: "ingredients", label: "Ingredients" },
+  { key: "daily-count", label: "Daily Count" },
   { key: "purchase-orders", label: "Purchase Orders" },
   { key: "suppliers", label: "Suppliers" },
   { key: "log", label: "Movement Log" },
@@ -36,6 +38,7 @@ export default function InventoryPage() {
         ))}
       </div>
       {tab === "ingredients" && <IngredientsTab />}
+      {tab === "daily-count" && <DailyCountTab />}
       {tab === "purchase-orders" && <PurchaseOrdersTab />}
       {tab === "suppliers" && <SuppliersTab />}
       {tab === "log" && <MovementLogTab />}

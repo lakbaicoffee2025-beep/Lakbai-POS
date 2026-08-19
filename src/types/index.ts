@@ -250,4 +250,30 @@ export interface StoreSettings {
   logoUrl?: string;
   lowStockDefaultThreshold: number;
   gcashQrUrl?: string;
+  // When true, cashiers don't see running sales totals on the Shift screen
+  // or the expected cash/GCash hint while closing out — they just record
+  // their physical count, blind, and admins review the variance in Reports.
+  hideSalesFromCashiers: boolean;
+}
+
+export type InventoryCountType = "opening" | "closing";
+
+export interface InventoryCountLine {
+  ingredientId: string;
+  ingredientName: string;
+  unit: IngredientUnit;
+  systemQty: number; // stock at the moment the count was taken
+  countedQty: number;
+  variance: number; // countedQty - systemQty
+}
+
+export interface InventoryCount {
+  id: string;
+  type: InventoryCountType;
+  date: string; // yyyy-MM-dd
+  lines: InventoryCountLine[];
+  notes?: string;
+  recordedBy: string;
+  recordedByName: string;
+  createdAt: number;
 }

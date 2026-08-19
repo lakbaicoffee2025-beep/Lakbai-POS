@@ -15,7 +15,9 @@ import type { Expense, Order, Shift } from "../types";
 export default function ShiftPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
   const activeShift = useShiftStore((s) => s.activeShift);
-  const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
+  const settings = useSettingsStore((s) => s.settings);
+  const symbol = settings?.currencySymbol ?? "₱";
+  const blind = currentUser.role === "cashier" && !!settings?.hideSalesFromCashiers;
 
   const [closeOpen, setCloseOpen] = useState(false);
   const [viewShift, setViewShift] = useState<Shift | null>(null);
@@ -68,22 +70,29 @@ export default function ShiftPage() {
               <Badge tone="success">Open</Badge>
             </div>
 
-            {summary && (
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <MiniStat label="Orders" value={String(summary.orderCount)} />
-                <MiniStat
-                  label="Net Sales"
-                  value={formatMoney(summary.netSales, symbol)}
-                />
-                <MiniStat
-                  label="Cash in Drawer (exp.)"
-                  value={formatMoney(summary.expectedCash, symbol)}
-                />
-                <MiniStat
-                  label="GCash Received"
-                  value={formatMoney(summary.expectedGcash, symbol)}
-                />
+            {blind ? (
+              <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3 mb-4">
+                Sales figures are hidden during your shift. Count your cash and GCash drawer
+                when you close out.
               </div>
+            ) : (
+              summary && (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <MiniStat label="Orders" value={String(summary.orderCount)} />
+                  <MiniStat
+                    label="Net Sales"
+                    value={formatMoney(summary.netSales, symbol)}
+                  />
+                  <MiniStat
+                    label="Cash in Drawer (exp.)"
+                    value={formatMoney(summary.expectedCash, symbol)}
+                  />
+                  <MiniStat
+                    label="GCash Received"
+                    value={formatMoney(summary.expectedGcash, symbol)}
+                  />
+                </div>
+              )
             )}
 
             <Button className="w-full" size="lg" onClick={() => setCloseOpen(true)}>
@@ -147,6 +156,7 @@ export default function ShiftPage() {
         <CloseShiftModal
           shift={activeShift}
           summary={summary}
+          blind={blind}
           onClose={() => setCloseOpen(false)}
           onClosed={() => setCloseOpen(false)}
         />

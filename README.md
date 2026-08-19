@@ -7,11 +7,12 @@ A mobile-first Point of Sale and inventory management system for LAKBAI Coffee, 
 - **POS** — category-filtered product grid, size variants, modifiers (milk options, add-ons, sweetness, etc.), per-line and order-level discounts, Cash / GCash / split payment, printable receipt.
 - **Ingredient-based inventory** — every product/variant/modifier has a recipe of ingredients; each sale automatically deducts stock and logs a movement.
 - **Purchase orders** — draft → ordered → received workflow per supplier, restocks ingredients automatically on receipt (supports partial receiving).
-- **Shift management** — open a shift with a starting cash float, sell throughout the shift, then close with a Cash + GCash count and automatic variance calculation against expected takings.
+- **Shift management** — open a shift with a starting cash float, sell throughout the shift, then close with a Cash + GCash count and automatic variance calculation against expected takings. Optional **blind cash count**: admins can hide running sales totals and the expected-amount hint from cashiers, who then just record their physical count — admins still see full totals and variances in Reports.
+- **Daily inventory count** (Inventory → Daily Count) — every ingredient listed at once, pre-filled with current stock, for fast beginning/ending-of-day counts. Submitting reconciles stock to what was counted and logs the variance as a normal adjustment.
 - **Expenses** — log daily out-of-pocket store purchases (supplies, utilities, etc.) by category and payment method; expenses reduce the expected cash-in-drawer total for the shift they're logged against.
 - **Reports** — daily sales & top products, full shift history, expense breakdown by category/date range, inventory valuation & low-stock alerts.
 - **Roles** — Admin (full access), Cashier (POS + own shifts + expenses), Stockman (inventory, purchase orders, suppliers + expenses). Enforced via protected routes.
-- **Settings** — store name/address, currency, tax rate (inclusive/exclusive), receipt footer, low-stock default threshold.
+- **Settings** — store name/address, currency, tax rate (inclusive/exclusive), receipt footer, low-stock default threshold, confidentiality, and a Danger Zone to reset the menu/inventory or factory-reset everything.
 - **CSV menu import** (Settings → Import Menu) — upload a Loyverse-style `export_items.csv` from a previous POS to bring in categories, products, size variants, and ingredient recipes in one go. Re-uploading an updated file later updates existing items by SKU instead of duplicating them, and never overwrites stock counts or modifier pricing you've already corrected in-app. See [CSV import notes](#csv-import-notes) below for what it does and doesn't infer.
 
 ## Data storage

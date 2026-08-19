@@ -12,6 +12,7 @@ import type {
   Supplier,
   PurchaseOrder,
   InventoryMovement,
+  InventoryCount,
   StoreSettings,
 } from "../types";
 
@@ -28,6 +29,7 @@ export class LakbaiDB extends Dexie {
   suppliers!: Table<Supplier, string>;
   purchaseOrders!: Table<PurchaseOrder, string>;
   inventoryMovements!: Table<InventoryMovement, string>;
+  inventoryCounts!: Table<InventoryCount, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -52,6 +54,10 @@ export class LakbaiDB extends Dexie {
     this.version(2).stores({
       ingredients: "id, name, sku",
       products: "id, categoryId, active, sortOrder, sku",
+    });
+    // v3: daily opening/closing inventory counts.
+    this.version(3).stores({
+      inventoryCounts: "id, type, date, createdAt",
     });
   }
 }

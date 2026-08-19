@@ -90,6 +90,7 @@ async function seedData(
     taxInclusive: true,
     receiptFooter: "Salamat sa pagbili! See you again soon.",
     lowStockDefaultThreshold: 10,
+    hideSalesFromCashiers: false,
   };
   await db.settings.add(settings);
 

@@ -30,6 +30,8 @@ export default function IngredientsTab() {
     "adjustment_in"
   );
   const [adjustNote, setAdjustNote] = useState("");
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const noteRequired = adjustType === "adjustment_out" || adjustType === "waste";
 
   function openCreate() {
     setForm(emptyIngredient());
@@ -63,6 +65,15 @@ export default function IngredientsTab() {
     if (!adjustTarget) return;
     const qty = parseFloat(adjustQty) || 0;
     if (qty === 0) return;
+    if (noteRequired && !adjustNote.trim()) {
+      setAdjustError(
+        adjustType === "waste"
+          ? "Please note what was damaged/spoiled and why, for accountability."
+          : "Please note the reason stock is being removed."
+      );
+      return;
+    }
+    setAdjustError(null);
     const delta = adjustType === "adjustment_in" ? Math.abs(qty) : -Math.abs(qty);
     await adjustIngredientStock(
       adjustTarget.id,
@@ -108,6 +119,8 @@ export default function IngredientsTab() {
                       setAdjustTarget(i);
                       setAdjustType("adjustment_in");
                       setAdjustQty("0");
+                      setAdjustNote("");
+                      setAdjustError(null);
                     }}
                   >
                     Adjust
@@ -205,7 +218,10 @@ export default function IngredientsTab() {
         <div className="space-y-3">
           <Select
             value={adjustType}
-            onChange={(e) => setAdjustType(e.target.value as typeof adjustType)}
+            onChange={(e) => {
+              setAdjustType(e.target.value as typeof adjustType);
+              setAdjustError(null);
+            }}
           >
             <option value="adjustment_in">Stock In (received/counted extra)</option>
             <option value="adjustment_out">Stock Out (manual removal)</option>
@@ -218,10 +234,20 @@ export default function IngredientsTab() {
             onChange={(e) => setAdjustQty(e.target.value)}
           />
           <Input
-            placeholder="Note (optional)"
+            placeholder={
+              noteRequired
+                ? adjustType === "waste"
+                  ? "What was damaged/spoiled? (required)"
+                  : "Reason for removal (required)"
+                : "Note (optional)"
+            }
             value={adjustNote}
-            onChange={(e) => setAdjustNote(e.target.value)}
+            onChange={(e) => {
+              setAdjustNote(e.target.value);
+              if (adjustError) setAdjustError(null);
+            }}
           />
+          {adjustError && <p className="text-xs text-red-600">{adjustError}</p>}
           {adjustTarget && (
             <p className="text-xs text-coffee-400">
               Current stock: {adjustTarget.stockQty} {adjustTarget.unit}

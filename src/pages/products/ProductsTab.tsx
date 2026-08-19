@@ -87,6 +87,12 @@ export default function ProductsTab() {
     await db.products.update(p.id, { active: !p.active });
   }
 
+  async function handleDelete(p: Product) {
+    if (confirm(`Delete "${p.name}"? This can't be undone. Past sales already made with this product are unaffected.`)) {
+      await db.products.delete(p.id);
+    }
+  }
+
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-3">
       <div className="flex justify-end">
@@ -122,6 +128,9 @@ export default function ProductsTab() {
                 </button>
                 <button className="text-accent-dark" onClick={() => openEdit(p)}>
                   Edit
+                </button>
+                <button className="text-red-600" onClick={() => handleDelete(p)}>
+                  Delete
                 </button>
               </div>
             </div>

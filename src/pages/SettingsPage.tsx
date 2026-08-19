@@ -3,6 +3,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import type { StoreSettings } from "../types";
 import { PageHeader, Card, Button, Input } from "../components/ui";
 import ImportCard from "./settings/ImportCard";
+import DangerZoneCard from "./settings/DangerZoneCard";
 
 export default function SettingsPage() {
   const settings = useSettingsStore((s) => s.settings);
@@ -118,11 +119,29 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        <Card className="p-4 space-y-3">
+          <h3 className="text-sm font-bold text-coffee-800">Confidentiality</h3>
+          <label className="flex items-start gap-2 text-sm text-coffee-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.hideSalesFromCashiers}
+              onChange={(e) => setForm({ ...form, hideSalesFromCashiers: e.target.checked })}
+            />
+            <span>
+              Blind cash count for cashiers — hide running sales totals and the expected
+              cash/GCash amount on the Shift screen so cashiers just record their physical
+              count. You'll still see full totals and variances in Reports.
+            </span>
+          </label>
+        </Card>
+
         <Button className="w-full" size="lg" onClick={handleSave}>
           {saved ? "Saved ✓" : "Save Settings"}
         </Button>
 
         <ImportCard />
+        <DangerZoneCard />
       </div>
     </div>
   );

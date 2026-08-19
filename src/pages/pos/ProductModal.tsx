@@ -68,10 +68,6 @@ export default function ProductModal({
   const modTotal = modifierList.reduce((s, m) => s + m.priceDelta, 0);
   const lineTotal = (unitPrice + modTotal) * qty;
 
-  const canSubmit = groups
-    .filter((g) => g.required)
-    .every((g) => (selected[g.id] ?? []).length >= Math.max(1, g.min));
-
   return (
     <Modal open onClose={onClose} title={product.name} wide>
       <div className="space-y-5">
@@ -173,7 +169,6 @@ export default function ProductModal({
         </Button>
         <Button
           className="flex-[2]"
-          disabled={!canSubmit}
           onClick={() =>
             onAdd({ variant, modifiers: modifierList, qty, notes: notes || undefined })
           }
