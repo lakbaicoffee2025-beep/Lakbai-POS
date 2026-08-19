@@ -47,6 +47,12 @@ export class LakbaiDB extends Dexie {
       inventoryMovements: "id, ingredientId, type, createdAt",
       settings: "id",
     });
+    // v2: index `sku` on ingredients/products so CSV re-imports can upsert
+    // by external POS SKU instead of creating duplicates.
+    this.version(2).stores({
+      ingredients: "id, name, sku",
+      products: "id, categoryId, active, sortOrder, sku",
+    });
   }
 }
 

@@ -12,6 +12,7 @@ A mobile-first Point of Sale and inventory management system for LAKBAI Coffee, 
 - **Reports** — daily sales & top products, full shift history, expense breakdown by category/date range, inventory valuation & low-stock alerts.
 - **Roles** — Admin (full access), Cashier (POS + own shifts + expenses), Stockman (inventory, purchase orders, suppliers + expenses). Enforced via protected routes.
 - **Settings** — store name/address, currency, tax rate (inclusive/exclusive), receipt footer, low-stock default threshold.
+- **CSV menu import** (Settings → Import Menu) — upload a Loyverse-style `export_items.csv` from a previous POS to bring in categories, products, size variants, and ingredient recipes in one go. Re-uploading an updated file later updates existing items by SKU instead of duplicating them, and never overwrites stock counts or modifier pricing you've already corrected in-app. See [CSV import notes](#csv-import-notes) below for what it does and doesn't infer.
 
 ## Data storage
 
@@ -34,6 +35,24 @@ Seeded automatically on first load:
 | Stockman | `stockman` | 2222 |
 
 Change these PINs from **Users** (admin only) before real use.
+
+## CSV import notes
+
+The importer (`src/lib/menuImport.ts`) is built for the Loyverse "export items" CSV format, where a single item can span multiple rows. What it does automatically:
+
+- Rows whose Category is exactly `Ingredients` become raw-material Ingredients, not sellable products.
+- A product's `SKU of included item` / `Quantity of included item` columns are resolved into its recipe against those ingredients — this is what makes automatic stock deduction work after import.
+- Multi-row items (Option value repeated across rows, e.g. Hot/Iced) become product size/flavor **variants**, priced relative to the first row.
+- Items that had `Track stock = Y` in the old system but no recipe reference (e.g. teas sold without a defined BOM) get a dedicated 1:1 "self-stock" ingredient synthesized for them, so their historical stock count (including negative counts from past overselling) carries over and future sales keep deducting it.
+- Per-item modifier flag columns (`Modifier - "X"`) become modifier groups with a placeholder ₱0 option, since the export doesn't carry modifier pricing.
+
+What it deliberately does **not** guess, and flags as a warning instead:
+
+- **Starting ingredient stock** for real raw materials — the export has no stock count for those, so they import at 0. Do an initial count and use Inventory → Adjust Stock (or a Purchase Order) to set real quantities before relying on low-stock alerts.
+- **Modifier prices** — review and set these in Products → Modifiers.
+- **Open/"variable" priced items** — imported at ₱0; set a real price in Products.
+- **A recipe referencing another sellable product rather than a raw ingredient** (some old menus modeled one dish as "1x another dish") — our recipe model only supports ingredient components, so these import as a placeholder ingredient that never restocks; rebuild that recipe by hand if it comes up.
+- **Duplicate product names under different SKUs** (old test/duplicate entries) — both import; hide or delete the stale one from Products.
 
 ## Local development
 

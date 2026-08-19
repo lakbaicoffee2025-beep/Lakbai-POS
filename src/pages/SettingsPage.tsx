@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
 import type { StoreSettings } from "../types";
 import { PageHeader, Card, Button, Input } from "../components/ui";
+import ImportCard from "./settings/ImportCard";
 
 export default function SettingsPage() {
   const settings = useSettingsStore((s) => s.settings);
@@ -120,6 +121,8 @@ export default function SettingsPage() {
         <Button className="w-full" size="lg" onClick={handleSave}>
           {saved ? "Saved ✓" : "Save Settings"}
         </Button>
+
+        <ImportCard />
       </div>
     </div>
   );

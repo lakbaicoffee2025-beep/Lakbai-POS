@@ -37,6 +37,7 @@ export interface Ingredient {
   costPerUnit: number; // cost per unit in store currency
   supplierId?: string;
   updatedAt: number;
+  sku?: string; // external POS/import identifier, used to match on re-import
 }
 
 export interface RecipeItem {
@@ -78,6 +79,7 @@ export interface Product {
   variants: ProductVariant[]; // optional size variants
   modifierGroupIds: string[];
   sortOrder: number;
+  sku?: string; // external POS/import identifier, used to match on re-import
 }
 
 export type DiscountType = "percent" | "fixed";
