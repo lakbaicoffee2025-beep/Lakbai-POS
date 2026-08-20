@@ -3,6 +3,7 @@ import type { Role } from "../types";
 export type NavKey =
   | "pos"
   | "shift"
+  | "receipts"
   | "inventory"
   | "products"
   | "expenses"
@@ -13,6 +14,7 @@ export type NavKey =
 export const NAV_ACCESS: Record<NavKey, Role[]> = {
   pos: ["admin", "cashier"],
   shift: ["admin", "cashier"],
+  receipts: ["admin", "cashier"],
   inventory: ["admin", "stockman"],
   products: ["admin"],
   expenses: ["admin", "cashier", "stockman"],

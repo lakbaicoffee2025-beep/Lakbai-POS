@@ -72,6 +72,11 @@ export class LakbaiDB extends Dexie {
     this.version(5).stores({
       openTickets: "id, shiftId, createdAt",
     });
+    // v6: index refId on inventory movements so voiding an order can look up
+    // exactly what it deducted without scanning every "sale" movement.
+    this.version(6).stores({
+      inventoryMovements: "id, ingredientId, type, createdAt, refId",
+    });
   }
 }
 

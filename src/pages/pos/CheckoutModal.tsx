@@ -39,6 +39,7 @@ export default function CheckoutModal({
   const [splitCash, setSplitCash] = useState<string>("0");
   const [splitGcash, setSplitGcash] = useState<string>(totals.total.toFixed(2));
   const [gcashRef, setGcashRef] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +99,7 @@ export default function CheckoutModal({
         payment,
         status: "completed",
         createdAt: Date.now(),
+        customerName: customerName.trim() || undefined,
       };
 
       // Compute ingredient usage across the whole order for stock deduction.
@@ -147,6 +149,18 @@ export default function CheckoutModal({
           <div className="text-3xl font-bold text-coffee-900">
             {formatMoney(totals.total, symbol)}
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-coffee-500 mb-1 block">
+            Customer Name (optional)
+          </label>
+          <input
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            placeholder="e.g. Juan Dela Cruz"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
         </div>
 
         <div className="flex gap-2">

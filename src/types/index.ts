@@ -164,6 +164,11 @@ export interface Order {
   payment: Payment;
   status: OrderStatus;
   createdAt: number;
+  customerName?: string;
+  voidedAt?: number;
+  voidedBy?: string;
+  voidedByName?: string;
+  voidReason?: string;
 }
 
 export type ShiftStatus = "open" | "closed";

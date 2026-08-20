@@ -8,6 +8,7 @@ import { homeRouteForRole } from "./lib/permissions";
 import LoginPage from "./pages/LoginPage";
 import POSPage from "./pages/pos/POSPage";
 import ShiftPage from "./pages/ShiftPage";
+import ReceiptsPage from "./pages/ReceiptsPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ProductsPage from "./pages/ProductsPage";
 import ExpensesPage from "./pages/ExpensesPage";
@@ -37,6 +38,16 @@ function AppRoot() {
           <ProtectedRoute navKey="shift">
             <AppShell>
               <ShiftPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/receipts"
+        element={
+          <ProtectedRoute navKey="receipts">
+            <AppShell>
+              <ReceiptsPage />
             </AppShell>
           </ProtectedRoute>
         }

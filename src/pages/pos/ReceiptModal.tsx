@@ -25,6 +25,9 @@ export default function ReceiptModal({
           <div className="text-xs text-coffee-400">
             {format(order.createdAt, "MMM d, yyyy h:mm a")}
           </div>
+          {order.customerName && (
+            <div className="text-sm text-coffee-600 mt-1">For: {order.customerName}</div>
+          )}
         </div>
 
         <div className="border-t border-b border-dashed border-coffee-200 py-3 space-y-2 text-sm">
