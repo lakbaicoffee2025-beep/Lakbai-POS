@@ -46,7 +46,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-dvh flex bg-cream-50">
+    <div className="h-dvh flex bg-cream-50 overflow-hidden">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-60 md:flex-col border-r border-coffee-100 bg-white safe-left">
         <div className="px-5 py-5 border-b border-coffee-100">
