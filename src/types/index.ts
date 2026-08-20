@@ -175,6 +175,42 @@ export interface Expense {
   recordedBy: string;
   recordedByName: string;
   createdAt: number;
+  reportId?: string; // set when this line was generated from an ExpenseReport
+  photoDataUrl?: string;
+}
+
+export interface ExpenseLineItem {
+  id: string;
+  description: string;
+  amount: number;
+  photoDataUrl?: string;
+}
+
+export type CashReturnStatus = "returned" | "not_returned" | null;
+
+/**
+ * A daily "petty cash" envelope: staff is handed cash/ATM funds, spends it
+ * on itemized store purchases (with receipt photos), and reports what's
+ * left over. Saving a report also writes one `Expense` line per item so
+ * shift cash-drawer reconciliation and the Reports page pick it up
+ * automatically without needing to know about this richer shape.
+ */
+export interface ExpenseReport {
+  id: string;
+  date: string; // yyyy-MM-dd
+  shiftId?: string;
+  staffId: string;
+  staffName: string;
+  cashReceived: number;
+  atmWithdrawal: number;
+  amountReceived: number; // cashReceived + atmWithdrawal
+  items: ExpenseLineItem[];
+  totalExpenses: number;
+  remainingCash: number; // amountReceived - totalExpenses
+  cashReturnStatus: CashReturnStatus;
+  returnedTo?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Supplier {
@@ -232,6 +268,8 @@ export interface InventoryMovement {
   refType?: "order" | "purchase_order" | "manual";
   refId?: string;
   note?: string;
+  reason?: string; // e.g. "Expired", "Dropped/Damaged" — mainly used for type "waste"
+  photoDataUrl?: string; // optional compressed photo evidence, mainly for type "waste"
   createdBy: string;
   createdByName: string;
   createdAt: number;

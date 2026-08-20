@@ -79,7 +79,8 @@ export async function adjustIngredientStock(
   type: InventoryMovementType,
   userId: string,
   userName: string,
-  note?: string
+  note?: string,
+  extra?: { reason?: string; photoDataUrl?: string }
 ): Promise<void> {
   await db.transaction(
     "rw",
@@ -101,6 +102,8 @@ export async function adjustIngredientStock(
         qty: qtyDelta,
         refType: "manual",
         note,
+        reason: extra?.reason,
+        photoDataUrl: extra?.photoDataUrl,
         createdBy: userId,
         createdByName: userName,
         createdAt: Date.now(),

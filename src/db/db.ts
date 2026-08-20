@@ -13,6 +13,7 @@ import type {
   PurchaseOrder,
   InventoryMovement,
   InventoryCount,
+  ExpenseReport,
   StoreSettings,
 } from "../types";
 
@@ -30,6 +31,7 @@ export class LakbaiDB extends Dexie {
   purchaseOrders!: Table<PurchaseOrder, string>;
   inventoryMovements!: Table<InventoryMovement, string>;
   inventoryCounts!: Table<InventoryCount, string>;
+  expenseReports!: Table<ExpenseReport, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -58,6 +60,11 @@ export class LakbaiDB extends Dexie {
     // v3: daily opening/closing inventory counts.
     this.version(3).stores({
       inventoryCounts: "id, type, date, createdAt",
+    });
+    // v4: cash-envelope expense reports; link simple Expense rows back to them.
+    this.version(4).stores({
+      expenses: "id, date, shiftId, recordedBy, createdAt, reportId",
+      expenseReports: "id, date, shiftId, staffId, createdAt",
     });
   }
 }
