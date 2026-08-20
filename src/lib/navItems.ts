@@ -8,6 +8,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { key: "dashboard", label: "Dashboard", icon: "📈", to: "/dashboard" },
   { key: "pos", label: "POS", icon: "🛒", to: "/pos" },
   { key: "shift", label: "Shift", icon: "🕒", to: "/shift" },
   { key: "receipts", label: "Receipts", icon: "🧾", to: "/receipts" },

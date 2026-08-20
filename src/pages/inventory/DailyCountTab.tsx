@@ -11,8 +11,21 @@ function todayStr(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
 
+function countTypeLabel(type: InventoryCountType): string {
+  if (type === "opening") return "Beginning";
+  if (type === "closing") return "Ending";
+  return "Actual";
+}
+
+function countTypeTone(type: InventoryCountType): "default" | "warning" | "danger" {
+  if (type === "opening") return "default";
+  if (type === "closing") return "warning";
+  return "danger";
+}
+
 export default function DailyCountTab() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
+  const isAdmin = currentUser.role === "admin";
   const ingredients = useLiveQuery(
     () => db.ingredients.toArray().then((l) => l.sort((a, b) => a.name.localeCompare(b.name))),
     []
@@ -65,6 +78,7 @@ export default function DailyCountTab() {
             <Select value={type} onChange={(e) => setType(e.target.value as InventoryCountType)}>
               <option value="opening">Beginning Inventory (Opening)</option>
               <option value="closing">Ending Inventory (Closing)</option>
+              {isAdmin && <option value="actual">Actual Count (Physical Stock-Take)</option>}
             </Select>
           </div>
           <div className="flex-1">
@@ -129,7 +143,7 @@ export default function DailyCountTab() {
         >
           {submitting
             ? "Saving…"
-            : `Submit ${type === "opening" ? "Beginning" : "Ending"} Count${
+            : `Submit ${countTypeLabel(type)} Count${
                 editedCount > 0 ? ` (${editedCount} changed)` : ""
               }`}
         </Button>
@@ -152,9 +166,7 @@ export default function DailyCountTab() {
                   <div>
                     <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">
                       {c.date}
-                      <Badge tone={c.type === "opening" ? "default" : "warning"}>
-                        {c.type === "opening" ? "Opening" : "Closing"}
-                      </Badge>
+                      <Badge tone={countTypeTone(c.type)}>{countTypeLabel(c.type)}</Badge>
                     </div>
                     <div className="text-xs text-coffee-400">
                       By {c.recordedByName} · {format(c.createdAt, "h:mm a")}
@@ -176,7 +188,7 @@ export default function DailyCountTab() {
           <div className="relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl max-w-lg max-h-[90vh] overflow-y-auto p-5 safe-bottom">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-bold text-coffee-900">
-                {viewCount.type === "opening" ? "Beginning" : "Ending"} Count · {viewCount.date}
+                {countTypeLabel(viewCount.type)} Count · {viewCount.date}
               </h2>
               <button
                 onClick={() => setViewCount(null)}

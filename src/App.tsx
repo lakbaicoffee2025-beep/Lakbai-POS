@@ -6,6 +6,7 @@ import AppShell from "./components/AppShell";
 import { homeRouteForRole } from "./lib/permissions";
 
 import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
 import POSPage from "./pages/pos/POSPage";
 import ShiftPage from "./pages/ShiftPage";
 import ReceiptsPage from "./pages/ReceiptsPage";
@@ -22,6 +23,16 @@ function AppRoot() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute navKey="dashboard">
+            <AppShell>
+              <DashboardPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/pos"
         element={

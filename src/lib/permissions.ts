@@ -1,6 +1,7 @@
 import type { Role } from "../types";
 
 export type NavKey =
+  | "dashboard"
   | "pos"
   | "shift"
   | "receipts"
@@ -12,6 +13,7 @@ export type NavKey =
   | "settings";
 
 export const NAV_ACCESS: Record<NavKey, Role[]> = {
+  dashboard: ["admin"],
   pos: ["admin", "cashier"],
   shift: ["admin", "cashier"],
   receipts: ["admin", "cashier"],
@@ -31,5 +33,6 @@ export function canAccess(role: Role | undefined, key: NavKey): boolean {
 /** First route a role should land on after login. */
 export function homeRouteForRole(role: Role): string {
   if (role === "stockman") return "/inventory";
+  if (role === "admin") return "/dashboard";
   return "/pos";
 }

@@ -13,7 +13,7 @@ const TABS = [
   { key: "dashboard", label: "Dashboard" },
   { key: "ingredients", label: "Ingredients" },
   { key: "restock", label: "Restock" },
-  { key: "daily-count", label: "Daily Count" },
+  { key: "daily-count", label: "Inventory Count" },
   { key: "spoilage", label: "Spoilage" },
   { key: "purchase-orders", label: "Purchase Orders" },
   { key: "suppliers", label: "Suppliers" },

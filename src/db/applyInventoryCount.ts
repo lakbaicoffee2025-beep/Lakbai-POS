@@ -3,10 +3,11 @@ import { newId } from "../lib/id";
 import type { InventoryCount, InventoryCountLine, InventoryCountType } from "../types";
 
 /**
- * Records a daily opening/closing inventory count and reconciles actual
- * stock to whatever was physically counted (skipping ingredients whose
- * count matches the system already). Each reconciling adjustment is logged
- * as a normal inventory movement, same as a manual stock adjustment.
+ * Records an inventory count — daily opening/closing, or an admin-run
+ * actual/physical count taken any time — and reconciles stock to whatever
+ * was physically counted (skipping ingredients whose count matches the
+ * system already). Each reconciling adjustment is logged as a normal
+ * inventory movement, same as a manual stock adjustment.
  */
 export async function submitInventoryCount(
   type: InventoryCountType,
@@ -50,7 +51,9 @@ export async function submitInventoryCount(
           type: variance > 0 ? "adjustment_in" : "adjustment_out",
           qty: variance,
           refType: "manual",
-          note: `${type === "opening" ? "Opening" : "Closing"} count for ${date}`,
+          note: `${
+            type === "opening" ? "Opening" : type === "closing" ? "Closing" : "Actual"
+          } count for ${date}`,
           createdBy: userId,
           createdByName: userName,
           createdAt: Date.now(),

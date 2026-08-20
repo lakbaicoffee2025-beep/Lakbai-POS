@@ -335,7 +335,7 @@ export interface StoreSettings {
   hideSalesFromCashiers: boolean;
 }
 
-export type InventoryCountType = "opening" | "closing";
+export type InventoryCountType = "opening" | "closing" | "actual";
 
 export interface InventoryCountLine {
   ingredientId: string;
