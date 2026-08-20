@@ -80,6 +80,10 @@ export interface Product {
   modifierGroupIds: string[];
   sortOrder: number;
   sku?: string; // external POS/import identifier, used to match on re-import
+  // Whether selling this product deducts ingredient stock / shows out-of-stock
+  // warnings. Undefined is treated as true (tracked) so existing products
+  // keep their current behavior without a migration.
+  trackStock?: boolean;
 }
 
 export type DiscountType = "percent" | "fixed";
@@ -113,6 +117,24 @@ export interface CartLine {
   discount?: { id: string; name: string; type: DiscountType; value: number };
   notes?: string;
   lineTotal: number; // computed
+}
+
+/**
+ * A held/parked order — a cart that's been set aside before payment, so
+ * staff can start another sale and come back to finish this one later
+ * (e.g. a customer who steps away, a table tab, a phoned-in order).
+ */
+export interface OpenTicket {
+  id: string;
+  name: string; // e.g. table name / customer name, staff-chosen label
+  notes?: string;
+  lines: CartLine[];
+  orderDiscount: { id: string; name: string; type: DiscountType; value: number } | null;
+  shiftId: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export type PaymentMethod = "cash" | "gcash" | "split";

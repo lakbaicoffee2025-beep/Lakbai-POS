@@ -6,7 +6,13 @@ import { computeOrderTotals } from "../../lib/cartMath";
 import { useSettingsStore } from "../../store/settingsStore";
 import { Button, Select } from "../../components/ui";
 
-export default function CartPanel({ onCheckout }: { onCheckout: () => void }) {
+export default function CartPanel({
+  onCheckout,
+  onHoldTicket,
+}: {
+  onCheckout: () => void;
+  onHoldTicket?: () => void;
+}) {
   const lines = useCartStore((s) => s.lines);
   const removeLine = useCartStore((s) => s.removeLine);
   const updateQty = useCartStore((s) => s.updateQty);
@@ -169,14 +175,27 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => void }) {
           </div>
         </div>
 
-        <Button
-          className="w-full mt-2"
-          size="lg"
-          disabled={lines.length === 0}
-          onClick={onCheckout}
-        >
-          Charge {formatMoney(total, symbol)}
-        </Button>
+        <div className="flex gap-2 mt-2">
+          {onHoldTicket && (
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1"
+              disabled={lines.length === 0}
+              onClick={onHoldTicket}
+            >
+              Hold
+            </Button>
+          )}
+          <Button
+            className="flex-[2]"
+            size="lg"
+            disabled={lines.length === 0}
+            onClick={onCheckout}
+          >
+            Charge {formatMoney(total, symbol)}
+          </Button>
+        </div>
       </div>
     </div>
   );

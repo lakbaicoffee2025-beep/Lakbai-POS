@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../../db/db";
 import { useAuthStore } from "../../store/authStore";
 import { useShiftStore } from "../../store/shiftStore";
 import { useCartStore } from "../../store/cartStore";
@@ -10,6 +12,8 @@ import CartPanel from "./CartPanel";
 import CheckoutModal from "./CheckoutModal";
 import ReceiptModal from "./ReceiptModal";
 import OpenShiftGate from "./OpenShiftGate";
+import HoldTicketModal from "./HoldTicketModal";
+import OpenTicketsPanel from "./OpenTicketsPanel";
 import type { Order } from "../../types";
 
 export default function POSPage() {
@@ -22,7 +26,11 @@ export default function POSPage() {
 
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [ticketsOpen, setTicketsOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+
+  const ticketCount = useLiveQuery(() => db.openTickets.count(), []) ?? 0;
 
   useEffect(() => {
     loadActiveShift(currentUser.id);
@@ -40,7 +48,21 @@ export default function POSPage() {
   return (
     <div className="h-full flex flex-col landscape:flex-row sm:flex-row">
       <div className="flex-1 min-h-0 min-w-0">
-        <ProductGrid />
+        <ProductGrid
+          headerAction={
+            <button
+              onClick={() => setTicketsOpen(true)}
+              className="shrink-0 bg-coffee-900 text-cream-50 rounded-lg pl-3 pr-2.5 text-xs font-semibold shadow-sm flex items-center gap-1.5"
+            >
+              🎫
+              {ticketCount > 0 && (
+                <span className="bg-accent rounded-full w-5 h-5 flex items-center justify-center text-[11px]">
+                  {ticketCount}
+                </span>
+              )}
+            </button>
+          }
+        />
       </div>
 
       {/* Side-by-side cart: kicks in on any landscape screen (phones rotated
@@ -48,7 +70,7 @@ export default function POSPage() {
           tablets/desktop, so a phone always shows the cart alongside the
           menu once it's rotated, regardless of its raw pixel width. */}
       <div className="hidden landscape:flex sm:flex landscape:w-72 sm:w-80 lg:w-96 border-l border-coffee-100 shrink-0">
-        <CartPanel onCheckout={() => setCheckoutOpen(true)} />
+        <CartPanel onCheckout={() => setCheckoutOpen(true)} onHoldTicket={() => setHoldOpen(true)} />
       </div>
 
       {/* Mobile portrait only: floating cart bar + full-screen cart sheet */}
@@ -82,6 +104,7 @@ export default function POSPage() {
               onCheckout={() => {
                 setCheckoutOpen(true);
               }}
+              onHoldTicket={() => setHoldOpen(true)}
             />
           </div>
         </div>
@@ -100,6 +123,24 @@ export default function POSPage() {
 
       {completedOrder && (
         <ReceiptModal order={completedOrder} onClose={() => setCompletedOrder(null)} />
+      )}
+
+      {holdOpen && (
+        <HoldTicketModal
+          onClose={() => {
+            setHoldOpen(false);
+            setMobileCartOpen(false);
+          }}
+        />
+      )}
+
+      {ticketsOpen && (
+        <OpenTicketsPanel
+          onClose={() => {
+            setTicketsOpen(false);
+            setMobileCartOpen(false);
+          }}
+        />
       )}
     </div>
   );

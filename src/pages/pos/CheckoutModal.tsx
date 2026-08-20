@@ -109,7 +109,7 @@ export default function CheckoutModal({
       const usage = new Map<string, number>();
       lines.forEach((line, idx) => {
         const product = products[idx];
-        if (!product) return;
+        if (!product || product.trackStock === false) return;
         const variant = product.variants.find((v) => v.id === line.variantId);
         const modifierRecipes = line.modifiers.map(
           (m) => optionRecipeById.get(m.optionId) ?? []

@@ -14,6 +14,7 @@ import type {
   InventoryMovement,
   InventoryCount,
   ExpenseReport,
+  OpenTicket,
   StoreSettings,
 } from "../types";
 
@@ -32,6 +33,7 @@ export class LakbaiDB extends Dexie {
   inventoryMovements!: Table<InventoryMovement, string>;
   inventoryCounts!: Table<InventoryCount, string>;
   expenseReports!: Table<ExpenseReport, string>;
+  openTickets!: Table<OpenTicket, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -65,6 +67,10 @@ export class LakbaiDB extends Dexie {
     this.version(4).stores({
       expenses: "id, date, shiftId, recordedBy, createdAt, reportId",
       expenseReports: "id, date, shiftId, staffId, createdAt",
+    });
+    // v5: open tickets (held/parked carts before payment).
+    this.version(5).stores({
+      openTickets: "id, shiftId, createdAt",
     });
   }
 }

@@ -28,6 +28,10 @@ interface CartState {
     discount: { id: string; name: string; type: DiscountType; value: number } | null
   ) => void;
   clearCart: () => void;
+  loadCart: (
+    lines: CartLine[],
+    orderDiscount: { id: string; name: string; type: DiscountType; value: number } | null
+  ) => void;
 }
 
 export const useCartStore = create<CartState>((set) => ({
@@ -64,6 +68,7 @@ export const useCartStore = create<CartState>((set) => ({
     })),
   setOrderDiscount: (discount) => set({ orderDiscount: discount }),
   clearCart: () => set({ lines: [], orderDiscount: null }),
+  loadCart: (lines, orderDiscount) => set({ lines, orderDiscount }),
 }));
 
 export type { CartLineModifier };

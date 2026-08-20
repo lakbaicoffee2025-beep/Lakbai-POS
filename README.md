@@ -4,8 +4,8 @@ A mobile-first Point of Sale and inventory management system for LAKBAI Coffee, 
 
 ## Features
 
-- **POS** — category-filtered product grid, size variants, modifiers (milk options, add-ons, sweetness, etc.), per-line and order-level discounts, Cash / GCash / split payment, printable receipt.
-- **Ingredient-based inventory** — every product/variant/modifier has a recipe of ingredients; each sale automatically deducts stock and logs a movement.
+- **POS** — category-filtered product grid, size variants, modifiers (milk options, add-ons, sweetness, etc.), per-line and order-level discounts, Cash / GCash / split payment, printable receipt. Selecting a size/modifier is never required, and a sale can go through even for an item flagged out of stock. **Open Tickets**: hold a cart before payment under a name/notes (e.g. a table or customer) and resume it later — handy for a customer who steps away or a phoned-in order.
+- **Ingredient-based inventory** — every product/variant/modifier has a recipe of ingredients; each sale automatically deducts stock and logs a movement. Stock tracking can be turned off per product (Products → Edit → Track Stock) for items you don't want inventory-tracked.
 - **Purchase orders** — draft → ordered → received workflow per supplier, restocks ingredients automatically on receipt (supports partial receiving).
 - **Shift management** — open a shift with a starting cash float, sell throughout the shift, then close with a Cash + GCash count and automatic variance calculation against expected takings. Optional **blind cash count**: admins can hide running sales totals and the expected-amount hint from cashiers, who then just record their physical count — admins still see full totals and variances in Reports.
 - **Daily inventory count** (Inventory → Daily Count) — every ingredient listed at once, pre-filled with current stock, for fast beginning/ending-of-day counts. Submitting reconciles stock to what was counted and logs the variance as a normal adjustment.

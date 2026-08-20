@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../db/db";
 import type { Product } from "../../types";
@@ -8,7 +8,7 @@ import ProductModal from "./ProductModal";
 import { useCartStore } from "../../store/cartStore";
 import type { CartLineModifier, ProductVariant } from "../../types";
 
-export default function ProductGrid() {
+export default function ProductGrid({ headerAction }: { headerAction?: ReactNode }) {
   const categories = useLiveQuery(
     () => db.categories.orderBy("sortOrder").toArray(),
     []
@@ -36,6 +36,7 @@ export default function ProductGrid() {
   }, [ingredients]);
 
   function isOutOfStock(p: Product): boolean {
+    if (p.trackStock === false) return false;
     return p.recipe.some((r) => (stockMap.get(r.ingredientId) ?? 0) < r.qty);
   }
 
@@ -84,12 +85,15 @@ export default function ProductGrid() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="p-3 landscape:py-2 space-y-2 landscape:space-y-1.5 border-b border-coffee-100 bg-white shrink-0">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products…"
-          className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-        />
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products…"
+            className="flex-1 min-w-0 rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
+          {headerAction}
+        </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
           <button
             onClick={() => setActiveCat("all")}
@@ -124,9 +128,8 @@ export default function ProductGrid() {
             return (
               <button
                 key={p.id}
-                disabled={oos}
                 onClick={() => handleQuickAdd(p)}
-                className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform disabled:opacity-40 disabled:pointer-events-none"
+                className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform"
               >
                 <div className="w-full aspect-square landscape:aspect-[4/3] rounded-lg bg-coffee-100 mb-2 landscape:mb-1 flex items-center justify-center text-2xl">
                   ☕

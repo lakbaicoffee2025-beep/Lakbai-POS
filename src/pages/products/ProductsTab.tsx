@@ -19,6 +19,7 @@ function emptyProduct(categoryId: string): Product {
     variants: [],
     modifierGroupIds: [],
     sortOrder: 0,
+    trackStock: true,
   };
 }
 
@@ -177,6 +178,19 @@ export default function ProductsTab() {
               />
             </div>
           </div>
+
+          <label className="flex items-start gap-2 text-sm text-coffee-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.trackStock !== false}
+              onChange={(e) => setForm({ ...form, trackStock: e.target.checked })}
+            />
+            <span>
+              Track stock for this product — deducts ingredients on sale and warns when out of
+              stock. Turn off for items you don't want inventory-tracked (e.g. quick specials).
+            </span>
+          </label>
 
           <div>
             <div className="text-sm font-semibold text-coffee-800 mb-2">
