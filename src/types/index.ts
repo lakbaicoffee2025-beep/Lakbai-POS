@@ -164,6 +164,19 @@ export interface Payment {
 
 export type OrderStatus = "completed" | "voided" | "refunded";
 
+/** A partial refund of one line item (some or all of its quantity). */
+export interface OrderRefund {
+  id: string;
+  lineId: string; // CartLine.id being refunded
+  productName: string; // label at time of refund, incl. variant if any
+  qty: number; // units refunded by this record
+  amount: number; // money refunded for this qty
+  reason: string;
+  refundedBy: string;
+  refundedByName: string;
+  refundedAt: number;
+}
+
 export interface Order {
   id: string;
   orderNo: number;
@@ -183,6 +196,7 @@ export interface Order {
   voidedBy?: string;
   voidedByName?: string;
   voidReason?: string;
+  refunds?: OrderRefund[];
 }
 
 export type ShiftStatus = "open" | "closed";

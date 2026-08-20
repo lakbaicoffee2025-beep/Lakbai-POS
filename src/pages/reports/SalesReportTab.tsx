@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { db } from "../../db/db";
 import { formatMoney } from "../../lib/format";
 import { useSettingsStore } from "../../store/settingsStore";
+import { refundedQtyForLine, orderRefundedTotal, orderRefundedCashGcash } from "../../lib/refundMath";
 import { Card, Input, EmptyState } from "../../components/ui";
 
 function todayStr(): string {
@@ -30,21 +31,25 @@ export default function SalesReportTab() {
   const gross = (orders ?? []).reduce((s, o) => s + o.subtotal, 0);
   const discount = (orders ?? []).reduce((s, o) => s + o.discountTotal, 0);
   const tax = (orders ?? []).reduce((s, o) => s + o.taxTotal, 0);
-  const net = (orders ?? []).reduce((s, o) => s + o.total, 0);
-  const cash = (orders ?? []).reduce((s, o) => s + o.payment.cashAmount, 0);
-  const gcash = (orders ?? []).reduce((s, o) => s + o.payment.gcashAmount, 0);
+  const refunded = (orders ?? []).reduce((s, o) => s + orderRefundedTotal(o), 0);
+  const net = (orders ?? []).reduce((s, o) => s + o.total - orderRefundedTotal(o), 0);
+  const cash = (orders ?? []).reduce((s, o) => s + o.payment.cashAmount - orderRefundedCashGcash(o).cash, 0);
+  const gcash = (orders ?? []).reduce((s, o) => s + o.payment.gcashAmount - orderRefundedCashGcash(o).gcash, 0);
 
   const productTotals = new Map<string, { name: string; qty: number; total: number }>();
   for (const o of orders ?? []) {
     for (const item of o.items) {
+      const netQty = item.qty - refundedQtyForLine(o, item.id);
+      if (netQty <= 0) continue;
+      const netLineTotal = (item.lineTotal / item.qty) * netQty;
       const key = item.productId + (item.variantId ?? "");
       const existing = productTotals.get(key);
       const label = item.productName + (item.variantName ? ` (${item.variantName})` : "");
       if (existing) {
-        existing.qty += item.qty;
-        existing.total += item.lineTotal;
+        existing.qty += netQty;
+        existing.total += netLineTotal;
       } else {
-        productTotals.set(key, { name: label, qty: item.qty, total: item.lineTotal });
+        productTotals.set(key, { name: label, qty: netQty, total: netLineTotal });
       }
     }
   }
@@ -60,6 +65,7 @@ export default function SalesReportTab() {
         <Stat label="Gross Sales" value={formatMoney(gross, symbol)} />
         <Stat label="Discounts" value={formatMoney(discount, symbol)} />
         <Stat label="Tax Collected" value={formatMoney(tax, symbol)} />
+        <Stat label="Refunds" value={formatMoney(refunded, symbol)} />
         <Stat label="Cash / GCash" value={`${formatMoney(cash, symbol)} / ${formatMoney(gcash, symbol)}`} />
       </div>
 

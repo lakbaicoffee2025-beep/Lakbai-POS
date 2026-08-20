@@ -4,7 +4,8 @@ import { format } from "date-fns";
 import { db } from "../../db/db";
 import { formatMoney } from "../../lib/format";
 import { useSettingsStore } from "../../store/settingsStore";
-import { Card, EmptyState } from "../../components/ui";
+import { adminUpdateShift, adminDeleteShift } from "../../db/shiftAdmin";
+import { Card, Button, Input, EmptyState, Modal } from "../../components/ui";
 import ShiftReportView from "../../components/ShiftReportView";
 import type { Shift } from "../../types";
 
@@ -15,6 +16,17 @@ export default function ShiftsReportTab() {
   );
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
   const [viewShift, setViewShift] = useState<Shift | null>(null);
+  const [editShift, setEditShift] = useState<Shift | null>(null);
+
+  async function handleDelete(s: Shift) {
+    const extra =
+      s.status === "open"
+        ? " This shift is still open — the cashier will lose their active session."
+        : "";
+    if (!confirm(`Delete this shift record? This can't be undone.${extra}`)) return;
+    await adminDeleteShift(s.id);
+    if (viewShift?.id === s.id) setViewShift(null);
+  }
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-3">
@@ -23,20 +35,19 @@ export default function ShiftsReportTab() {
       ) : (
         <Card className="divide-y divide-coffee-100">
           {shifts.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setViewShift(s)}
-              className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-coffee-50"
-            >
-              <div>
+            <div key={s.id} className="flex items-center justify-between px-4 py-3 gap-2">
+              <button
+                onClick={() => setViewShift(s)}
+                className="min-w-0 flex-1 text-left hover:opacity-80"
+              >
                 <div className="text-sm font-semibold text-coffee-900">
                   {s.cashierName} · {format(s.startedAt, "MMM d, h:mm a")}
                 </div>
                 <div className="text-xs text-coffee-400">
                   {s.status === "open" ? "Ongoing" : `Ended ${format(s.endedAt!, "h:mm a")}`}
                 </div>
-              </div>
-              <div className="text-right">
+              </button>
+              <div className="text-right shrink-0">
                 {s.status === "closed" ? (
                   <div
                     className={`text-xs font-medium ${
@@ -51,7 +62,15 @@ export default function ShiftsReportTab() {
                   <div className="text-xs font-medium text-emerald-600">Open</div>
                 )}
               </div>
-            </button>
+              <div className="flex gap-2 text-xs font-semibold shrink-0">
+                <button className="text-accent-dark" onClick={() => setEditShift(s)}>
+                  Edit
+                </button>
+                <button className="text-red-600" onClick={() => handleDelete(s)}>
+                  Delete
+                </button>
+              </div>
+            </div>
           ))}
         </Card>
       )}
@@ -73,6 +92,138 @@ export default function ShiftsReportTab() {
           </div>
         </div>
       )}
+
+      {editShift && (
+        <EditShiftModal
+          shift={editShift}
+          symbol={symbol}
+          onClose={() => setEditShift(null)}
+          onSaved={() => setEditShift(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function EditShiftModal({
+  shift,
+  symbol,
+  onClose,
+  onSaved,
+}: {
+  shift: Shift;
+  symbol: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [startingCash, setStartingCash] = useState(String(shift.startingCash));
+  const [countedCash, setCountedCash] = useState(String(shift.countedCash ?? 0));
+  const [countedGcash, setCountedGcash] = useState(String(shift.countedGcash ?? 0));
+  const [notes, setNotes] = useState(shift.notes ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await adminUpdateShift(shift.id, {
+        startingCash: parseFloat(startingCash) || 0,
+        countedCash: parseFloat(countedCash) || 0,
+        countedGcash: parseFloat(countedGcash) || 0,
+        notes: notes || undefined,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save changes");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit Shift · ${shift.cashierName}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={submitting} onClick={handleSave}>
+            {submitting ? "Saving…" : "Save Changes"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-coffee-400 mb-1 block">
+            Starting Cash ({symbol})
+          </label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            value={startingCash}
+            onChange={(e) => setStartingCash(e.target.value)}
+          />
+        </div>
+
+        {shift.status === "closed" ? (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-coffee-400 mb-1 block">
+                Counted Cash ({symbol})
+              </label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={countedCash}
+                onChange={(e) => setCountedCash(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-coffee-400 mb-1 block">
+                Counted GCash ({symbol})
+              </label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={countedGcash}
+                onChange={(e) => setCountedGcash(e.target.value)}
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-coffee-400">
+            This shift is still open — counted cash/GCash aren't recorded until it's closed.
+          </p>
+        )}
+
+        <div>
+          <label className="text-xs text-coffee-400 mb-1 block">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
+        </div>
+
+        {shift.status === "closed" && (
+          <p className="text-xs text-coffee-400">
+            Expected cash/GCash and the variance shown in reports will be recalculated from this
+            shift's actual sales and expenses.
+          </p>
+        )}
+
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

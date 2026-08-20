@@ -78,6 +78,10 @@ export default function ReceiptsPage() {
                   <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">
                     Order #{o.orderNo}
                     {o.status === "voided" && <Badge tone="danger">Voided</Badge>}
+                    {o.status === "refunded" && <Badge tone="warning">Refunded</Badge>}
+                    {o.status === "completed" && (o.refunds?.length ?? 0) > 0 && (
+                      <Badge tone="warning">Partial Refund</Badge>
+                    )}
                   </div>
                   <div className="text-xs text-coffee-400 truncate">
                     {format(o.createdAt, "MMM d, h:mm a")}

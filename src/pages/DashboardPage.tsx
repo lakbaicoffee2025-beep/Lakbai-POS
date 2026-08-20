@@ -4,6 +4,7 @@ import { format, subDays } from "date-fns";
 import { db } from "../db/db";
 import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
+import { refundedQtyForLine, orderRefundedTotal, orderRefundedCashGcash } from "../lib/refundMath";
 import { PageHeader, Card, Select, EmptyState } from "../components/ui";
 import type { Order } from "../types";
 
@@ -29,16 +30,19 @@ function aggregateProducts(orders: Order[]): ProductAgg[] {
   const map = new Map<string, ProductAgg>();
   for (const o of orders) {
     for (const item of o.items) {
+      const netQty = item.qty - refundedQtyForLine(o, item.id);
+      if (netQty <= 0) continue;
+      const netRevenue = (item.lineTotal / item.qty) * netQty;
       const existing = map.get(item.productId);
       if (existing) {
-        existing.qty += item.qty;
-        existing.revenue += item.lineTotal;
+        existing.qty += netQty;
+        existing.revenue += netRevenue;
       } else {
         map.set(item.productId, {
           productId: item.productId,
           name: item.productName,
-          qty: item.qty,
-          revenue: item.lineTotal,
+          qty: netQty,
+          revenue: netRevenue,
         });
       }
     }
@@ -65,9 +69,15 @@ export default function DashboardPage() {
 
   const orders = todayOrders ?? [];
   const orderCount = orders.length;
-  const netSales = orders.reduce((s, o) => s + o.total, 0);
-  const cash = orders.reduce((s, o) => s + o.payment.cashAmount, 0);
-  const gcash = orders.reduce((s, o) => s + o.payment.gcashAmount, 0);
+  const netSales = orders.reduce((s, o) => s + o.total - orderRefundedTotal(o), 0);
+  const cash = orders.reduce((s, o) => {
+    const refunded = orderRefundedCashGcash(o);
+    return s + o.payment.cashAmount - refunded.cash;
+  }, 0);
+  const gcash = orders.reduce((s, o) => {
+    const refunded = orderRefundedCashGcash(o);
+    return s + o.payment.gcashAmount - refunded.gcash;
+  }, 0);
 
   const top5 = useMemo(
     () => aggregateProducts(todayOrders ?? []).sort((a, b) => b.qty - a.qty).slice(0, 5),

@@ -14,8 +14,8 @@ export type NavKey =
 
 export const NAV_ACCESS: Record<NavKey, Role[]> = {
   dashboard: ["admin"],
-  pos: ["admin", "cashier"],
-  shift: ["admin", "cashier"],
+  pos: ["cashier"],
+  shift: ["cashier"],
   receipts: ["admin", "cashier"],
   inventory: ["admin", "stockman"],
   products: ["admin"],
