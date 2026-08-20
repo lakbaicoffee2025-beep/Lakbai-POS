@@ -49,6 +49,7 @@ export default function ExpensesPage() {
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [carryover, setCarryover] = useState<{ amount: number; reports: ExpenseReport[] } | null>(null);
   const [cleanupDays, setCleanupDays] = useState("30");
+  const [customCleanupDays, setCustomCleanupDays] = useState("30");
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
@@ -197,11 +198,15 @@ export default function ExpensesPage() {
     if (editingId === id) resetForm();
   }
 
+  const effectiveCleanupDays =
+    cleanupDays === "custom" ? parseInt(customCleanupDays, 10) : parseInt(cleanupDays, 10);
+
   async function handleCleanupPhotos() {
+    if (!Number.isFinite(effectiveCleanupDays) || effectiveCleanupDays < 1) return;
     setCleaningUp(true);
     setCleanupResult(null);
     try {
-      const cutoff = format(subDays(new Date(), parseInt(cleanupDays, 10)), "yyyy-MM-dd");
+      const cutoff = format(subDays(new Date(), effectiveCleanupDays), "yyyy-MM-dd");
       const count = await clearOldExpensePhotos(cutoff);
       setCleanupResult(
         count === 0
@@ -412,11 +417,33 @@ export default function ExpensesPage() {
                 <option value="30">Older than 30 days</option>
                 <option value="60">Older than 60 days</option>
                 <option value="90">Older than 90 days</option>
+                <option value="custom">Custom…</option>
               </Select>
-              <Button variant="secondary" disabled={cleaningUp} onClick={handleCleanupPhotos}>
+              {cleanupDays === "custom" && (
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={customCleanupDays}
+                  onChange={(e) => setCustomCleanupDays(e.target.value)}
+                  className="w-20 shrink-0"
+                />
+              )}
+              <Button
+                variant="secondary"
+                disabled={cleaningUp || !Number.isFinite(effectiveCleanupDays) || effectiveCleanupDays < 1}
+                onClick={handleCleanupPhotos}
+                className="shrink-0"
+              >
                 {cleaningUp ? "Clearing…" : "Clear Photos"}
               </Button>
             </div>
+            {cleanupDays === "custom" && (
+              <p className="text-xs text-coffee-400">
+                Clears photos on reports dated more than {customCleanupDays || "?"} day
+                {customCleanupDays === "1" ? "" : "s"} ago.
+              </p>
+            )}
             {cleanupResult && (
               <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                 {cleanupResult}
