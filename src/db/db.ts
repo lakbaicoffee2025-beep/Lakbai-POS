@@ -16,6 +16,7 @@ import type {
   ExpenseReport,
   OpenTicket,
   DraftCart,
+  ExpenseDraft,
   StoreSettings,
 } from "../types";
 
@@ -36,6 +37,7 @@ export class LakbaiDB extends Dexie {
   expenseReports!: Table<ExpenseReport, string>;
   openTickets!: Table<OpenTicket, string>;
   draftCarts!: Table<DraftCart, string>;
+  expenseDrafts!: Table<ExpenseDraft, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -89,6 +91,12 @@ export class LakbaiDB extends Dexie {
       .upgrade(async (tx) => {
         await tx.table("settings").where("id").equals("settings").modify({ taxRate: 0 });
       });
+    // v8: expenseDrafts (auto-saved in-progress Expense Report form per
+    // staff member, so an accidental exit or lost connection before Save
+    // doesn't lose it — same idea as draftCarts for the POS cart).
+    this.version(8).stores({
+      expenseDrafts: "staffId",
+    });
   }
 }
 

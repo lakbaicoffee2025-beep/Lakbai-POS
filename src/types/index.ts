@@ -230,6 +230,26 @@ export interface ExpenseLineItem {
 export type CashReturnStatus = "returned" | "not_returned" | null;
 
 /**
+ * An automatic, per-staff snapshot of the Expense Report form currently
+ * being filled out (new report or an in-progress edit) — saved continuously
+ * in the background, including item photos, so an accidental exit or lost
+ * internet connection before hitting Save doesn't lose it. One row per
+ * staff member; cleared once that report is successfully saved or the edit
+ * is cancelled.
+ */
+export interface ExpenseDraft {
+  staffId: string; // primary key
+  editingId: string | null; // set if this draft is an in-progress edit of an existing report
+  date: string;
+  cashReceived: string;
+  atmWithdrawal: string;
+  items: ExpenseLineItem[];
+  returnStatus: CashReturnStatus;
+  returnedTo: string;
+  updatedAt: number;
+}
+
+/**
  * A daily "petty cash" envelope: staff is handed cash/ATM funds, spends it
  * on itemized store purchases (with receipt photos), and reports what's
  * left over. Saving a report also writes one `Expense` line per item so
@@ -333,6 +353,11 @@ export interface StoreSettings {
   // or the expected cash/GCash hint while closing out — they just record
   // their physical count, blind, and admins review the variance in Reports.
   hideSalesFromCashiers: boolean;
+  // Master switch for discounts at checkout. When false (or unset, on older
+  // settings rows), the Order Discount and per-line discount pickers are
+  // hidden from the POS entirely — admins still manage the underlying
+  // discount list from Products → Discounts regardless of this switch.
+  discountsEnabled?: boolean;
 }
 
 export type InventoryCountType = "opening" | "closing" | "actual";

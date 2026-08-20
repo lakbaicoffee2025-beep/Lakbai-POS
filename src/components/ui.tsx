@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import clsx from "clsx";
+import { cn } from "../lib/cn";
 
 export function PageHeader({
   title,
@@ -34,7 +34,7 @@ export function Card({
 }) {
   return (
     <div
-      className={clsx(
+      className={cn(
         "bg-white rounded-xl border border-coffee-100 shadow-sm",
         className
       )}
@@ -55,7 +55,7 @@ export function Button({
 }) {
   return (
     <button
-      className={clsx(
+      className={cn(
         "font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none",
         size === "sm" && "px-3 py-1.5 text-xs",
         size === "md" && "px-4 py-2.5 text-sm",
@@ -77,7 +77,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={clsx(
+      className={cn(
         "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30",
         props.className
       )}
@@ -93,7 +93,7 @@ export function Select({
   return (
     <select
       {...props}
-      className={clsx(
+      className={cn(
         "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30",
         className
       )}
@@ -123,7 +123,7 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className={clsx(
+        className={cn(
           "relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh] safe-bottom",
           wide ? "sm:max-w-2xl" : "sm:max-w-md"
         )}
@@ -158,7 +158,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={clsx(
+      className={cn(
         "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
         tone === "default" && "bg-coffee-100 text-coffee-700",
         tone === "success" && "bg-emerald-100 text-emerald-700",

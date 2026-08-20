@@ -1,19 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { db } from "../db/db";
-import { saveExpenseReport, deleteExpenseReport, newLineItem, getYesterdayCarryover } from "../db/expenseReports";
+import {
+  saveExpenseReport,
+  deleteExpenseReport,
+  newLineItem,
+  getYesterdayCarryover,
+  clearOldExpensePhotos,
+} from "../db/expenseReports";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { formatMoney } from "../lib/format";
 import { computeExpenseTotals } from "../lib/expenseMath";
 import { compressImage, readFileAsDataUrl } from "../lib/image";
-import type { ExpenseLineItem, CashReturnStatus, ExpenseReport } from "../types";
-import { PageHeader, Card, Button, Input, Badge, EmptyState } from "../components/ui";
+import type { ExpenseLineItem, CashReturnStatus, ExpenseReport, User } from "../types";
+import { PageHeader, Card, Button, Input, Select, Badge, EmptyState } from "../components/ui";
 
 function todayStr(): string {
   return format(new Date(), "yyyy-MM-dd");
+}
+
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Admin can always edit/delete any report. Everyone else can only touch
+ * their own report, and only within 24 hours of first submitting it. */
+function canEditReport(r: ExpenseReport, user: User): boolean {
+  if (user.role === "admin") return true;
+  if (r.staffId !== user.id) return false;
+  return Date.now() - r.createdAt < EDIT_WINDOW_MS;
 }
 
 export default function ExpensesPage() {
@@ -32,6 +48,9 @@ export default function ExpensesPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [carryover, setCarryover] = useState<{ amount: number; reports: ExpenseReport[] } | null>(null);
+  const [cleanupDays, setCleanupDays] = useState("30");
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
   const reports = useLiveQuery(
     () => db.expenseReports.orderBy("createdAt").reverse().limit(30).toArray(),
@@ -42,6 +61,46 @@ export default function ExpensesPage() {
     if (editingId) return; // don't show carryover while editing an existing report
     getYesterdayCarryover(date).then((c) => setCarryover(c.amount > 0 ? c : null));
   }, [date, editingId]);
+
+  // Restore whatever was being filled in last time — covers an accidental
+  // exit or lost connection before hitting Save. Only fetched once per
+  // login session; autosave below stays off until this actually finishes,
+  // so it can't race the fetch and overwrite a draft with the form's blank
+  // initial state.
+  const fetchStartedRef = useRef(false);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
+    db.expenseDrafts.get(currentUser.id).then((draft) => {
+      if (draft) {
+        setEditingId(draft.editingId);
+        setDate(draft.date);
+        setCashReceived(draft.cashReceived);
+        setAtmWithdrawal(draft.atmWithdrawal);
+        setItems(draft.items.length > 0 ? draft.items : [newLineItem()]);
+        setReturnStatus(draft.returnStatus);
+        setReturnedTo(draft.returnedTo);
+      }
+      setRestored(true);
+    });
+  }, [currentUser.id]);
+
+  // Keep that snapshot current as the form changes.
+  useEffect(() => {
+    if (!restored) return;
+    db.expenseDrafts.put({
+      staffId: currentUser.id,
+      editingId,
+      date,
+      cashReceived,
+      atmWithdrawal,
+      items,
+      returnStatus,
+      returnedTo,
+      updatedAt: Date.now(),
+    });
+  }, [restored, currentUser.id, editingId, date, cashReceived, atmWithdrawal, items, returnStatus, returnedTo]);
 
   const totals = computeExpenseTotals(
     parseFloat(cashReceived) || 0,
@@ -58,6 +117,7 @@ export default function ExpensesPage() {
     setReturnStatus(null);
     setReturnedTo("");
     setError(null);
+    db.expenseDrafts.delete(currentUser.id);
   }
 
   function loadForEdit(r: ExpenseReport) {
@@ -135,6 +195,22 @@ export default function ExpensesPage() {
     if (!confirm("Delete this expense report? This can't be undone.")) return;
     await deleteExpenseReport(id);
     if (editingId === id) resetForm();
+  }
+
+  async function handleCleanupPhotos() {
+    setCleaningUp(true);
+    setCleanupResult(null);
+    try {
+      const cutoff = format(subDays(new Date(), parseInt(cleanupDays, 10)), "yyyy-MM-dd");
+      const count = await clearOldExpensePhotos(cutoff);
+      setCleanupResult(
+        count === 0
+          ? "No photos older than that to clear."
+          : `Cleared ${count} photo${count === 1 ? "" : "s"}. Amounts and descriptions were kept.`
+      );
+    } finally {
+      setCleaningUp(false);
+    }
   }
 
   return (
@@ -317,6 +393,38 @@ export default function ExpensesPage() {
           </Button>
         </Card>
 
+        {currentUser.role === "admin" && (
+          <Card className="p-4 space-y-3 border-amber-200">
+            <div>
+              <h3 className="text-sm font-bold text-coffee-800">Storage Cleanup</h3>
+              <p className="text-xs text-coffee-400 mt-0.5">
+                Receipt photos take up the most local storage. Clear old ones to free up space
+                — amounts and descriptions are kept, only the images are removed. This can't be
+                undone.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Select
+                value={cleanupDays}
+                onChange={(e) => setCleanupDays(e.target.value)}
+                className="flex-1"
+              >
+                <option value="30">Older than 30 days</option>
+                <option value="60">Older than 60 days</option>
+                <option value="90">Older than 90 days</option>
+              </Select>
+              <Button variant="secondary" disabled={cleaningUp} onClick={handleCleanupPhotos}>
+                {cleaningUp ? "Clearing…" : "Clear Photos"}
+              </Button>
+            </div>
+            {cleanupResult && (
+              <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                {cleanupResult}
+              </div>
+            )}
+          </Card>
+        )}
+
         <div>
           <h3 className="text-sm font-bold text-coffee-800 mb-2 px-1">Report History</h3>
           {!reports || reports.length === 0 ? (
@@ -337,12 +445,20 @@ export default function ExpensesPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 text-xs font-semibold shrink-0">
-                      <button className="text-accent-dark" onClick={() => loadForEdit(r)}>
-                        Edit
-                      </button>
-                      <button className="text-red-600" onClick={() => handleDelete(r.id)}>
-                        Delete
-                      </button>
+                      {canEditReport(r, currentUser) ? (
+                        <>
+                          <button className="text-accent-dark" onClick={() => loadForEdit(r)}>
+                            Edit
+                          </button>
+                          <button className="text-red-600" onClick={() => handleDelete(r.id)}>
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-coffee-300" title="Edit window closed">
+                          🔒 Locked
+                        </span>
+                      )}
                     </div>
                   </div>
                   {r.remainingCash > 0 && (

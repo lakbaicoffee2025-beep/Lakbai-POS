@@ -21,7 +21,7 @@ const POLL_INTERVAL_MS = 8000;
 // the in-progress cart autosave, which only exists so an accidental reload
 // on *this* device doesn't lose an unfinished sale. Not part of the shared
 // cross-device dataset.
-const LOCAL_ONLY_TABLES = new Set(["draftCarts"]);
+const LOCAL_ONLY_TABLES = new Set(["draftCarts", "expenseDrafts"]);
 
 // A write is only safe from an incoming pull once it has actually reached
 // the server — until then, pulling would clear()+bulkAdd() this table back

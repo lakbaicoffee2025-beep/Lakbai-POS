@@ -91,6 +91,24 @@ export default function SettingsPage() {
         </Card>
 
         <Card className="p-4 space-y-3">
+          <h3 className="text-sm font-bold text-coffee-800">Discounts</h3>
+          <label className="flex items-start gap-2 text-sm text-coffee-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.discountsEnabled ?? true}
+              onChange={(e) => setForm({ ...form, discountsEnabled: e.target.checked })}
+            />
+            <span>
+              Allow discounts at checkout. Turning this off hides the Order Discount and
+              per-item discount pickers from the POS entirely, so cashiers can't apply any
+              discount. The discount list itself (Products → Discounts) stays admin-only to
+              create, edit, and enable/disable regardless of this switch.
+            </span>
+          </label>
+        </Card>
+
+        <Card className="p-4 space-y-3">
           <h3 className="text-sm font-bold text-coffee-800">Receipt</h3>
           <div>
             <label className="text-xs text-coffee-400 mb-1 block">Receipt Footer Message</label>

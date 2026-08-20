@@ -23,6 +23,7 @@ export default function CartPanel({
 
   const settings = useSettingsStore((s) => s.settings);
   const symbol = settings?.currencySymbol ?? "₱";
+  const discountsEnabled = settings?.discountsEnabled ?? true;
   const discounts = useLiveQuery(
     () => db.discounts.filter((d) => d.active).toArray(),
     []
@@ -105,24 +106,26 @@ export default function CartPanel({
                   +
                 </button>
               </div>
-              <select
-                value={line.discount?.id ?? ""}
-                onChange={(e) => {
-                  const d = (discounts ?? []).find((d) => d.id === e.target.value);
-                  setLineDiscount(
-                    line.id,
-                    d ? { id: d.id, name: d.name, type: d.type, value: d.value } : undefined
-                  );
-                }}
-                className="text-xs border border-coffee-200 rounded-md px-1.5 py-1 text-coffee-600 min-w-0 flex-1 max-w-[120px]"
-              >
-                <option value="">No discount</option>
-                {(discounts ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              {discountsEnabled && (
+                <select
+                  value={line.discount?.id ?? ""}
+                  onChange={(e) => {
+                    const d = (discounts ?? []).find((d) => d.id === e.target.value);
+                    setLineDiscount(
+                      line.id,
+                      d ? { id: d.id, name: d.name, type: d.type, value: d.value } : undefined
+                    );
+                  }}
+                  className="text-xs border border-coffee-200 rounded-md px-1.5 py-1 text-coffee-600 min-w-0 flex-1 max-w-[120px]"
+                >
+                  <option value="">No discount</option>
+                  {(discounts ?? []).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <div className="text-sm font-bold text-coffee-900 shrink-0">
                 {formatMoney(line.lineTotal, symbol)}
               </div>
@@ -132,27 +135,29 @@ export default function CartPanel({
       </div>
 
       <div className="border-t border-coffee-100 p-4 space-y-2 shrink-0">
-        <div>
-          <label className="text-xs font-medium text-coffee-500 mb-1 block">
-            Order Discount
-          </label>
-          <Select
-            value={orderDiscount?.id ?? ""}
-            onChange={(e) => {
-              const d = (discounts ?? []).find((d) => d.id === e.target.value);
-              setOrderDiscount(
-                d ? { id: d.id, name: d.name, type: d.type, value: d.value } : null
-              );
-            }}
-          >
-            <option value="">No discount</option>
-            {(discounts ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name} ({d.type === "percent" ? `${d.value}%` : formatMoney(d.value, symbol)})
-              </option>
-            ))}
-          </Select>
-        </div>
+        {discountsEnabled && (
+          <div>
+            <label className="text-xs font-medium text-coffee-500 mb-1 block">
+              Order Discount
+            </label>
+            <Select
+              value={orderDiscount?.id ?? ""}
+              onChange={(e) => {
+                const d = (discounts ?? []).find((d) => d.id === e.target.value);
+                setOrderDiscount(
+                  d ? { id: d.id, name: d.name, type: d.type, value: d.value } : null
+                );
+              }}
+            >
+              <option value="">No discount</option>
+              {(discounts ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.type === "percent" ? `${d.value}%` : formatMoney(d.value, symbol)})
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
         <div className="text-sm space-y-1 pt-1">
           <div className="flex justify-between text-coffee-600">

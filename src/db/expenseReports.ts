@@ -100,3 +100,36 @@ export async function getYesterdayCarryover(
   const amount = reports.reduce((s, r) => s + Math.max(0, r.remainingCash), 0);
   return { amount, reports };
 }
+
+/**
+ * Strips receipt photos from expense report items (and their mirrored
+ * Expense rows) dated before the given cutoff, to free up local storage.
+ * Amounts, descriptions, and every other field are left untouched — only
+ * the (often large) base64 image data is cleared. Returns how many photos
+ * were cleared.
+ */
+export async function clearOldExpensePhotos(cutoffDate: string): Promise<number> {
+  return db.transaction("rw", db.expenseReports, db.expenses, async () => {
+    let cleared = 0;
+
+    const reports = await db.expenseReports.where("date").below(cutoffDate).toArray();
+    for (const r of reports) {
+      if (!r.items.some((i) => i.photoDataUrl)) continue;
+      const items = r.items.map((i) => {
+        if (!i.photoDataUrl) return i;
+        cleared++;
+        const { photoDataUrl: _drop, ...rest } = i;
+        return rest;
+      });
+      await db.expenseReports.update(r.id, { items });
+    }
+
+    const expenses = await db.expenses.where("date").below(cutoffDate).toArray();
+    for (const e of expenses) {
+      if (!e.photoDataUrl) continue;
+      await db.expenses.update(e.id, { photoDataUrl: undefined });
+    }
+
+    return cleared;
+  });
+}
