@@ -11,7 +11,8 @@ import type {
   User,
 } from "../types";
 
-export async function seedIfEmpty(): Promise<void> {
+/** Seeds default demo data if the local DB is empty. Returns true if it actually seeded. */
+export async function seedIfEmpty(): Promise<boolean> {
   // Pre-hash PINs outside the transaction (crypto.subtle doesn't touch IDB).
   const adminHash = await hashPin("1234");
   const cashierHash = await hashPin("1111");
@@ -21,7 +22,7 @@ export async function seedIfEmpty(): Promise<void> {
   // a second concurrent call (e.g. React StrictMode's double effect invoke in
   // dev) sees a non-empty `users` table and bails out instead of racing on
   // singleton keys like settings.add({ id: "settings" }).
-  await db.transaction(
+  return db.transaction(
     "rw",
     [
       db.users,
@@ -35,8 +36,9 @@ export async function seedIfEmpty(): Promise<void> {
     ],
     async () => {
       const userCount = await db.users.count();
-      if (userCount > 0) return;
+      if (userCount > 0) return false;
       await seedData(adminHash, cashierHash, stockmanHash);
+      return true;
     }
   );
 }

@@ -6,6 +6,7 @@ A mobile-first Point of Sale and inventory management system for LAKBAI Coffee, 
 
 - **POS** — category-filtered product grid, size variants, modifiers (milk options, add-ons, sweetness, etc.), per-line and order-level discounts, Cash / GCash / split payment, an optional customer name, and a printable receipt. Selecting a size/modifier is never required, and a sale can go through even for an item flagged out of stock. **Open Tickets**: hold a cart before payment under a name/notes (e.g. a table or customer) and resume it later — handy for a customer who steps away or a phoned-in order.
 - **Receipts** (every completed sale) — a searchable transaction history (by customer name, cashier, or order #) so any past receipt can be pulled up again. Cashiers see their own transactions only; Admin sees everything and can **void** a transaction — restoring exactly the ingredient stock it deducted and requiring a reason — a capability cashiers never see or have access to.
+- **Cross-device sync** — when deployed to Netlify, every device/browser signed into the same store sees the same menu, inventory, receipts, shifts, and settings, kept in sync automatically in the background. See [Data storage](#data-storage) below.
 - **Ingredient-based inventory** — every product/variant/modifier has a recipe of ingredients; each sale automatically deducts stock and logs a movement. Stock tracking can be turned off per product (Products → Edit → Track Stock) for items you don't want inventory-tracked.
 - **Stock Dashboard** (Inventory → Dashboard, the default tab) — at-a-glance stat cards (total ingredients, OK/Low/Critical counts, inventory valuation) plus a searchable, color-coded grid of every ingredient's status. Available to both Admin and Stockman.
 - **Restock** (Inventory → Restock) — a fast bulk stock-in screen for supply runs that don't go through a formal purchase order: every ingredient listed with a blank quantity field, fill in only what you're restocking, submit once. Logs a movement per ingredient and keeps its own recent-restocks history.
@@ -22,13 +23,15 @@ A mobile-first Point of Sale and inventory management system for LAKBAI Coffee, 
 
 ## Data storage
 
-This app is **local-first**: all data lives in the browser's IndexedDB (via Dexie.js) on the device it's used on — there is no backend server or external database. This means:
+This app is **local-first with cross-device sync**: every read and write goes through the browser's IndexedDB (via Dexie.js) on the device it's used on, exactly as before — nothing about how the app is used changes. On top of that, when deployed to Netlify, a small serverless function (`netlify/functions/sync.mjs`) backed by **Netlify Blobs** mirrors the data so every device/browser signed into the same deployed site converges on the same menu, inventory, receipts, shifts, and settings:
 
-- It works fully offline once loaded, which is ideal for a register that can't depend on Wi-Fi.
-- Data does **not** sync between devices/browsers. If you run the POS on a phone and a tablet, they'll have separate, independent data.
-- Clearing browser data/site data on that device will erase the store's data, so avoid clearing site data and consider periodically checking your browser doesn't auto-clear storage.
+- **Push** — any local write (create/update/delete) debounces briefly, then pushes just the affected table up as its full current snapshot.
+- **Pull** — on load, the app first tries to hydrate from the server (so a second device gets real data instead of re-seeding its own demo set); after that it polls every ~8 seconds for changes made elsewhere.
+- **Conflict model** — simple last-write-wins per table, no merge/CRDT logic. Fine for a small shop's counter(s); if two devices edit the exact same record within the same poll window, whichever push lands last on the server wins.
+- **Fully offline-capable** — every sync call fails silently. Without a deployed Netlify Function (plain `vite dev`/`vite preview`, a non-Netlify static host, or just no network), the app keeps working exactly as it always has: purely on the local IndexedDB copy, with no sync.
+- Clearing browser data/site data on a device will erase that device's local copy, but it will re-hydrate from the server (if reachable) on next load instead of re-seeding demo data — as long as at least one other synced device/deploy has pushed real data before.
 
-For a single-till cafe counter this is usually fine. If you later need multiple registers sharing one live inventory/sales feed, that would require adding a real backend (e.g. Supabase/Postgres) — the code is organized (`src/db`) so that swap is contained to one layer.
+No environment variables or account setup are required for sync to work — Netlify Blobs auto-provisions per site once deployed.
 
 ## Demo accounts
 
@@ -67,6 +70,8 @@ npm install
 npm run dev
 ```
 
+Plain `npm run dev` (Vite only) runs the app fully local-only — there's no server for `/api/sync` to hit, so every device has independent data, same as before sync existed. To exercise cross-device sync locally, run it through the Netlify CLI instead (`npx netlify dev`), which serves `netlify/functions/sync.mjs` alongside the app.
+
 ## Build
 
 ```bash
@@ -87,4 +92,4 @@ npm install -g netlify-cli
 netlify deploy --build --prod
 ```
 
-No environment variables or external services are required — it's a static bundle.
+No environment variables, account setup, or external services are required — Netlify provisions the Blobs store and the sync function automatically as part of the deploy.

@@ -1,5 +1,18 @@
 import { db } from "./db";
 import { seedIfEmpty } from "./seed";
+import { pushAll, pushTables } from "./remoteSync";
+
+const MENU_TABLES = [
+  "categories",
+  "products",
+  "modifierGroups",
+  "discounts",
+  "ingredients",
+  "suppliers",
+  "purchaseOrders",
+  "inventoryMovements",
+  "inventoryCounts",
+];
 
 /**
  * Wipes the product/inventory catalog — categories, products, modifier
@@ -34,6 +47,10 @@ export async function resetMenuAndInventory(): Promise<void> {
       await db.inventoryCounts.clear();
     }
   );
+  // Dexie's clear() doesn't fire the hooks that normally queue a sync push,
+  // so push the wipe explicitly — otherwise the next poll would pull the
+  // old data back from the server.
+  await pushTables(MENU_TABLES);
 }
 
 /**
@@ -49,4 +66,7 @@ export async function factoryReset(): Promise<void> {
     }
   });
   await seedIfEmpty();
+  // Same reasoning as above: clear() bypasses the sync hooks, so publish
+  // the wiped-and-reseeded state as the new shared baseline explicitly.
+  await pushAll();
 }
