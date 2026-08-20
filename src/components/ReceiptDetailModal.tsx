@@ -88,10 +88,12 @@ export default function ReceiptDetailModal({
               <span>-{formatMoney(order.discountTotal, symbol)}</span>
             </div>
           )}
-          <div className="flex justify-between text-coffee-600">
-            <span>Tax</span>
-            <span>{formatMoney(order.taxTotal, symbol)}</span>
-          </div>
+          {order.taxTotal > 0 && (
+            <div className="flex justify-between text-coffee-600">
+              <span>Tax</span>
+              <span>{formatMoney(order.taxTotal, symbol)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg font-bold text-coffee-900">
             <span>Total</span>
             <span>{formatMoney(order.total, symbol)}</span>

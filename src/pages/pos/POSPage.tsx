@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../db/db";
 import { useAuthStore } from "../../store/authStore";
@@ -22,6 +22,7 @@ export default function POSPage() {
   const loadActiveShift = useShiftStore((s) => s.loadActiveShift);
   const lines = useCartStore((s) => s.lines);
   const orderDiscount = useCartStore((s) => s.orderDiscount);
+  const loadCart = useCartStore((s) => s.loadCart);
   const settings = useSettingsStore((s) => s.settings);
 
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -35,6 +36,33 @@ export default function POSPage() {
   useEffect(() => {
     loadActiveShift(currentUser.id);
   }, [currentUser.id, loadActiveShift]);
+
+  // Restore whatever was in the register when this shift was last touched —
+  // covers an accidental page reload/crash mid-sale. Only ever attempted
+  // once per shift so it can't fight a deliberate clear afterward.
+  const restoredShiftRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeShift || restoredShiftRef.current === activeShift.id) return;
+    restoredShiftRef.current = activeShift.id;
+    db.draftCarts.get(activeShift.id).then((draft) => {
+      if (draft && (draft.lines.length > 0 || draft.orderDiscount)) {
+        loadCart(draft.lines, draft.orderDiscount);
+      }
+    });
+  }, [activeShift, loadCart]);
+
+  // Keep that snapshot current as the cart changes, so it's always safe to
+  // reload. Also naturally clears itself once the cart empties out (sale
+  // completed, ticket held, or manually cleared).
+  useEffect(() => {
+    if (!activeShift) return;
+    db.draftCarts.put({
+      shiftId: activeShift.id,
+      lines,
+      orderDiscount,
+      updatedAt: Date.now(),
+    });
+  }, [activeShift, lines, orderDiscount]);
 
   if (!activeShift) return <OpenShiftGate />;
 

@@ -57,6 +57,7 @@ export const useShiftStore = create<ShiftState>((set) => ({
       gcashVariance,
       notes: data.notes,
     });
+    await db.draftCarts.delete(shiftId);
     set({ activeShift: null });
   },
   clear: () => set({ activeShift: null }),

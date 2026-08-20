@@ -165,10 +165,12 @@ export default function CartPanel({
               <span>-{formatMoney(discountTotal, symbol)}</span>
             </div>
           )}
-          <div className="flex justify-between text-coffee-600">
-            <span>Tax ({taxRate}%{taxInclusive ? ", incl." : ""})</span>
-            <span>{formatMoney(taxTotal, symbol)}</span>
-          </div>
+          {taxRate > 0 && (
+            <div className="flex justify-between text-coffee-600">
+              <span>Tax ({taxRate}%{taxInclusive ? ", incl." : ""})</span>
+              <span>{formatMoney(taxTotal, symbol)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg font-bold text-coffee-900 pt-1">
             <span>Total</span>
             <span>{formatMoney(total, symbol)}</span>

@@ -137,6 +137,20 @@ export interface OpenTicket {
   updatedAt: number;
 }
 
+/**
+ * An automatic, per-shift snapshot of the cart currently being built at the
+ * register — saved continuously in the background (not staff-initiated,
+ * unlike OpenTicket) so an accidental page reload/crash mid-sale doesn't
+ * lose it. One row per shift; overwritten as the cart changes, and cleared
+ * once the sale completes, is held as a ticket, or the shift closes.
+ */
+export interface DraftCart {
+  shiftId: string; // primary key
+  lines: CartLine[];
+  orderDiscount: { id: string; name: string; type: DiscountType; value: number } | null;
+  updatedAt: number;
+}
+
 export type PaymentMethod = "cash" | "gcash" | "split";
 
 export interface Payment {

@@ -15,6 +15,7 @@ import type {
   InventoryCount,
   ExpenseReport,
   OpenTicket,
+  DraftCart,
   StoreSettings,
 } from "../types";
 
@@ -34,6 +35,7 @@ export class LakbaiDB extends Dexie {
   inventoryCounts!: Table<InventoryCount, string>;
   expenseReports!: Table<ExpenseReport, string>;
   openTickets!: Table<OpenTicket, string>;
+  draftCarts!: Table<DraftCart, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -77,6 +79,16 @@ export class LakbaiDB extends Dexie {
     this.version(6).stores({
       inventoryMovements: "id, ingredientId, type, createdAt, refId",
     });
+    // v7: draftCarts (auto-saved in-progress cart per shift, so an accidental
+    // reload doesn't lose an unfinished sale) + remove the store's default
+    // tax rate that every install previously started with.
+    this.version(7)
+      .stores({
+        draftCarts: "shiftId",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("settings").where("id").equals("settings").modify({ taxRate: 0 });
+      });
   }
 }
 

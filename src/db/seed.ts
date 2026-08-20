@@ -88,7 +88,7 @@ async function seedData(
     phone: "",
     currency: "PHP",
     currencySymbol: "₱",
-    taxRate: 12,
+    taxRate: 0,
     taxInclusive: true,
     receiptFooter: "Salamat sa pagbili! See you again soon.",
     lowStockDefaultThreshold: 10,
