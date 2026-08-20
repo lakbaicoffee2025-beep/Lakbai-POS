@@ -112,6 +112,43 @@ export async function adjustIngredientStock(
   );
 }
 
+/**
+ * Quick bulk stock-in across multiple ingredients at once — for restocking
+ * that didn't go through a formal Purchase Order (e.g. a walk-in supply
+ * run). Adds the given quantities and logs one "adjustment_in" movement per
+ * ingredient.
+ */
+export async function bulkRestock(
+  entries: { ingredientId: string; qty: number }[],
+  userId: string,
+  userName: string,
+  note?: string
+): Promise<void> {
+  await db.transaction("rw", db.ingredients, db.inventoryMovements, async () => {
+    for (const { ingredientId, qty } of entries) {
+      if (qty <= 0) continue;
+      const ingredient = await db.ingredients.get(ingredientId);
+      if (!ingredient) continue;
+      await db.ingredients.update(ingredientId, {
+        stockQty: ingredient.stockQty + qty,
+        updatedAt: Date.now(),
+      });
+      await db.inventoryMovements.add({
+        id: newId(),
+        ingredientId,
+        ingredientName: ingredient.name,
+        type: "adjustment_in",
+        qty,
+        refType: "manual",
+        note: note || "Restock",
+        createdBy: userId,
+        createdByName: userName,
+        createdAt: Date.now(),
+      });
+    }
+  });
+}
+
 /** Receive (fully or partially) a purchase order: adds stock and logs movements. */
 export async function receivePurchaseOrder(
   po: PurchaseOrder,

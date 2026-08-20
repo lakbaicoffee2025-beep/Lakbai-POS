@@ -35,6 +35,11 @@ export default function ProductsTab() {
   const [form, setForm] = useState<Product>(emptyProduct(""));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filteredProducts = (products ?? []).filter((p) =>
+    p.name.toLowerCase().includes(query.toLowerCase())
+  );
 
   function openCreate() {
     setForm(emptyProduct(categories?.[0]?.id ?? ""));
@@ -96,7 +101,13 @@ export default function ProductsTab() {
 
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-3">
-      <div className="flex justify-end">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Search products…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1"
+        />
         <Button onClick={openCreate} disabled={!categories || categories.length === 0}>
           + New Product
         </Button>
@@ -107,11 +118,11 @@ export default function ProductsTab() {
         </div>
       )}
 
-      {!products || products.length === 0 ? (
-        <EmptyState text="No products yet." />
+      {filteredProducts.length === 0 ? (
+        <EmptyState text={query ? "No products match your search." : "No products yet."} />
       ) : (
         <Card className="divide-y divide-coffee-100">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-4 py-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">

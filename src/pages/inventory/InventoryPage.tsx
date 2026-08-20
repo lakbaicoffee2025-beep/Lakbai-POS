@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { PageHeader } from "../../components/ui";
+import StockDashboardTab from "./StockDashboardTab";
 import IngredientsTab from "./IngredientsTab";
+import RestockTab from "./RestockTab";
 import SuppliersTab from "./SuppliersTab";
 import PurchaseOrdersTab from "./PurchaseOrdersTab";
 import MovementLogTab from "./MovementLogTab";
@@ -8,7 +10,9 @@ import DailyCountTab from "./DailyCountTab";
 import SpoilageTab from "./SpoilageTab";
 
 const TABS = [
+  { key: "dashboard", label: "Dashboard" },
   { key: "ingredients", label: "Ingredients" },
+  { key: "restock", label: "Restock" },
   { key: "daily-count", label: "Daily Count" },
   { key: "spoilage", label: "Spoilage" },
   { key: "purchase-orders", label: "Purchase Orders" },
@@ -19,7 +23,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 export default function InventoryPage() {
-  const [tab, setTab] = useState<TabKey>("ingredients");
+  const [tab, setTab] = useState<TabKey>("dashboard");
 
   return (
     <div>
@@ -39,7 +43,9 @@ export default function InventoryPage() {
           </button>
         ))}
       </div>
+      {tab === "dashboard" && <StockDashboardTab />}
       {tab === "ingredients" && <IngredientsTab />}
+      {tab === "restock" && <RestockTab />}
       {tab === "daily-count" && <DailyCountTab />}
       {tab === "spoilage" && <SpoilageTab />}
       {tab === "purchase-orders" && <PurchaseOrdersTab />}

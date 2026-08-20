@@ -32,6 +32,11 @@ export default function IngredientsTab() {
   const [adjustNote, setAdjustNote] = useState("");
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const noteRequired = adjustType === "adjustment_out" || adjustType === "waste";
+  const [query, setQuery] = useState("");
+
+  const filteredIngredients = (ingredients ?? []).filter((i) =>
+    i.name.toLowerCase().includes(query.toLowerCase())
+  );
 
   function openCreate() {
     setForm(emptyIngredient());
@@ -90,15 +95,21 @@ export default function IngredientsTab() {
 
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-3">
-      <div className="flex justify-end">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Search ingredients…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1"
+        />
         <Button onClick={openCreate}>+ New Ingredient</Button>
       </div>
 
-      {!ingredients || ingredients.length === 0 ? (
-        <EmptyState text="No ingredients yet." />
+      {filteredIngredients.length === 0 ? (
+        <EmptyState text={query ? "No ingredients match your search." : "No ingredients yet."} />
       ) : (
         <Card className="divide-y divide-coffee-100">
-          {ingredients.map((i) => {
+          {filteredIngredients.map((i) => {
             const low = i.stockQty <= i.reorderLevel;
             return (
               <div key={i.id} className="flex items-center justify-between px-4 py-3 gap-2">
