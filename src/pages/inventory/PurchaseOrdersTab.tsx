@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../../db/db";
@@ -36,11 +36,33 @@ export default function PurchaseOrdersTab() {
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
   const [receiveQtys, setReceiveQtys] = useState<Record<string, string>>({});
 
-  function openCreate() {
-    setSupplierId(suppliers?.[0]?.id ?? "");
-    setItems([]);
+  async function openCreate() {
+    // Resume an unfinished draft (e.g. the browser closed mid-entry) instead
+    // of silently discarding it — only start blank if there wasn't one.
+    const draft = await db.purchaseOrderDrafts.get(currentUser.id);
+    if (draft && draft.items.length > 0) {
+      setSupplierId(draft.supplierId);
+      setItems(draft.items);
+    } else {
+      setSupplierId(suppliers?.[0]?.id ?? "");
+      setItems([]);
+    }
     setCreateOpen(true);
   }
+
+  // Autosave the in-progress PO while the create modal is open, so an
+  // accidental close doesn't lose it. Not cleared on Cancel/backdrop-close
+  // (Modal's onClose doesn't distinguish an accidental dismiss from a
+  // deliberate one) — only once the PO is actually created.
+  useEffect(() => {
+    if (!createOpen) return;
+    db.purchaseOrderDrafts.put({
+      staffId: currentUser.id,
+      supplierId,
+      items,
+      updatedAt: Date.now(),
+    });
+  }, [createOpen, currentUser.id, supplierId, items]);
 
   function addItem() {
     const ing = (ingredients ?? []).find(
@@ -81,6 +103,7 @@ export default function PurchaseOrdersTab() {
       orderedAt: status === "ordered" ? Date.now() : undefined,
     };
     await db.purchaseOrders.add(po);
+    await db.purchaseOrderDrafts.delete(currentUser.id);
     setCreateOpen(false);
   }
 

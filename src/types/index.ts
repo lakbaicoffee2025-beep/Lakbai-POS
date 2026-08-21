@@ -398,3 +398,43 @@ export interface InventoryCount {
   recordedByName: string;
   createdAt: number;
 }
+
+/**
+ * Automatic, per-staff snapshots of an in-progress Inventory form —
+ * mirroring DraftCart/ExpenseDraft's purpose: restore the form exactly as
+ * left if the page reloads or the browser closes before submitting, since
+ * these all let you fill in many fields before one final save. One row per
+ * staff member per form; cleared once that submit succeeds.
+ */
+export interface RestockDraft {
+  staffId: string; // primary key
+  values: Record<string, string>; // ingredientId -> entered qty
+  note: string;
+  updatedAt: number;
+}
+
+export interface InventoryCountDraft {
+  staffId: string; // primary key
+  type: InventoryCountType;
+  date: string;
+  notes: string;
+  values: Record<string, string>; // ingredientId -> counted qty
+  updatedAt: number;
+}
+
+export interface SpoilageDraft {
+  staffId: string; // primary key
+  ingredientId: string;
+  qty: string;
+  reason: string;
+  notes: string;
+  photoDataUrl?: string;
+  updatedAt: number;
+}
+
+export interface PurchaseOrderDraft {
+  staffId: string; // primary key
+  supplierId: string;
+  items: PurchaseOrderItem[];
+  updatedAt: number;
+}

@@ -17,6 +17,10 @@ import type {
   OpenTicket,
   DraftCart,
   ExpenseDraft,
+  RestockDraft,
+  InventoryCountDraft,
+  SpoilageDraft,
+  PurchaseOrderDraft,
   StoreSettings,
 } from "../types";
 
@@ -38,6 +42,10 @@ export class LakbaiDB extends Dexie {
   openTickets!: Table<OpenTicket, string>;
   draftCarts!: Table<DraftCart, string>;
   expenseDrafts!: Table<ExpenseDraft, string>;
+  restockDrafts!: Table<RestockDraft, string>;
+  inventoryCountDrafts!: Table<InventoryCountDraft, string>;
+  spoilageDrafts!: Table<SpoilageDraft, string>;
+  purchaseOrderDrafts!: Table<PurchaseOrderDraft, string>;
   settings!: Table<StoreSettings, string>;
 
   constructor() {
@@ -96,6 +104,15 @@ export class LakbaiDB extends Dexie {
     // doesn't lose it — same idea as draftCarts for the POS cart).
     this.version(8).stores({
       expenseDrafts: "staffId",
+    });
+    // v9: same auto-save-per-staff protection extended to the other
+    // Inventory forms that let you fill in a lot before one final submit —
+    // Restock, Inventory Count, Spoilage, and creating a Purchase Order.
+    this.version(9).stores({
+      restockDrafts: "staffId",
+      inventoryCountDrafts: "staffId",
+      spoilageDrafts: "staffId",
+      purchaseOrderDrafts: "staffId",
     });
   }
 }

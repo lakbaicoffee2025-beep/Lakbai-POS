@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../../db/db";
@@ -28,6 +28,30 @@ export default function RestockTab() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Restore whatever was entered last time — covers an accidental exit
+  // before hitting Add Stock. Only fetched once per login session;
+  // autosave below stays off until this actually finishes, so it can't
+  // race the fetch and overwrite a draft with the form's blank initial
+  // state.
+  const fetchStartedRef = useRef(false);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
+    db.restockDrafts.get(currentUser.id).then((draft) => {
+      if (draft) {
+        setValues(draft.values);
+        setNote(draft.note);
+      }
+      setRestored(true);
+    });
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!restored) return;
+    db.restockDrafts.put({ staffId: currentUser.id, values, note, updatedAt: Date.now() });
+  }, [restored, currentUser.id, values, note]);
 
   const filtered = (ingredients ?? []).filter((i) =>
     i.name.toLowerCase().includes(query.toLowerCase())
@@ -61,6 +85,7 @@ export default function RestockTab() {
       );
       setValues({});
       setNote("");
+      await db.restockDrafts.delete(currentUser.id);
     } finally {
       setSubmitting(false);
     }

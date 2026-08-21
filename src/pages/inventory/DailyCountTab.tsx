@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../../db/db";
@@ -47,6 +47,38 @@ export default function DailyCountTab() {
     [values]
   );
 
+  // Restore whatever was being counted last time — covers an accidental
+  // exit before submitting. Only fetched once per login session; autosave
+  // below stays off until this actually finishes, so it can't race the
+  // fetch and overwrite a draft with the form's blank initial state.
+  const fetchStartedRef = useRef(false);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
+    db.inventoryCountDrafts.get(currentUser.id).then((draft) => {
+      if (draft) {
+        setType(draft.type);
+        setDate(draft.date);
+        setNotes(draft.notes);
+        setValues(draft.values);
+      }
+      setRestored(true);
+    });
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!restored) return;
+    db.inventoryCountDrafts.put({
+      staffId: currentUser.id,
+      type,
+      date,
+      notes,
+      values,
+      updatedAt: Date.now(),
+    });
+  }, [restored, currentUser.id, type, date, notes, values]);
+
   function setValue(ingredientId: string, val: string) {
     setValues((prev) => ({ ...prev, [ingredientId]: val }));
   }
@@ -64,6 +96,7 @@ export default function DailyCountTab() {
       await submitInventoryCount(type, date, map, currentUser.id, currentUser.name, notes || undefined);
       setValues({});
       setNotes("");
+      await db.inventoryCountDrafts.delete(currentUser.id);
     } finally {
       setSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../../db/db";
@@ -37,6 +37,41 @@ export default function SpoilageTab() {
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
 
   const selectedIngredient = ingredients?.find((i) => i.id === ingredientId);
+
+  // Restore whatever was being logged last time — covers an accidental
+  // exit before submitting (including a photo already attached). Only
+  // fetched once per login session; autosave below stays off until this
+  // actually finishes, so it can't race the fetch and overwrite a draft
+  // with the form's blank initial state.
+  const fetchStartedRef = useRef(false);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
+    db.spoilageDrafts.get(currentUser.id).then((draft) => {
+      if (draft) {
+        setIngredientId(draft.ingredientId);
+        setQty(draft.qty);
+        setReason(draft.reason);
+        setNotes(draft.notes);
+        setPhoto(draft.photoDataUrl ?? null);
+      }
+      setRestored(true);
+    });
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!restored) return;
+    db.spoilageDrafts.put({
+      staffId: currentUser.id,
+      ingredientId,
+      qty,
+      reason,
+      notes,
+      photoDataUrl: photo ?? undefined,
+      updatedAt: Date.now(),
+    });
+  }, [restored, currentUser.id, ingredientId, qty, reason, notes, photo]);
 
   async function handlePhotoChange(file: File | undefined) {
     if (!file) {
@@ -79,6 +114,7 @@ export default function SpoilageTab() {
       setReason(REASONS[0]);
       setNotes("");
       setPhoto(null);
+      await db.spoilageDrafts.delete(currentUser.id);
     } finally {
       setSubmitting(false);
     }
