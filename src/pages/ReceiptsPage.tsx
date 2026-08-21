@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../db/db";
 import { useAuthStore } from "../store/authStore";
+import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { formatMoney } from "../lib/format";
 import type { Order } from "../types";
@@ -11,6 +12,7 @@ import ReceiptDetailModal from "../components/ReceiptDetailModal";
 
 export default function ReceiptsPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
+  const activeShift = useShiftStore((s) => s.activeShift);
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
   const isAdmin = currentUser.role === "admin";
 
@@ -18,17 +20,14 @@ export default function ReceiptsPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
 
-  const orders = useLiveQuery(
-    () =>
-      (isAdmin
-        ? db.orders.orderBy("createdAt").reverse().toArray()
-        : db.orders
-            .where("cashierId")
-            .equals(currentUser.id)
-            .reverse()
-            .sortBy("createdAt")),
-    [isAdmin, currentUser.id]
-  );
+  // Non-admin (cashier) only ever sees the receipts from their current
+  // open shift — reviewing past shifts/dates is admin-only. With no shift
+  // open there's nothing to scope to, so the list is simply empty.
+  const orders = useLiveQuery(() => {
+    if (isAdmin) return db.orders.orderBy("createdAt").reverse().toArray();
+    if (!activeShift) return Promise.resolve<Order[]>([]);
+    return db.orders.where("shiftId").equals(activeShift.id).reverse().sortBy("createdAt");
+  }, [isAdmin, activeShift?.id]);
 
   const filtered = (orders ?? []).filter((o) => {
     if (dateFilter && format(o.createdAt, "yyyy-MM-dd") !== dateFilter) return false;
@@ -45,7 +44,13 @@ export default function ReceiptsPage() {
     <div>
       <PageHeader
         title="Receipts"
-        subtitle={isAdmin ? "All transactions" : "Your transactions"}
+        subtitle={
+          isAdmin
+            ? "All transactions"
+            : activeShift
+              ? "This shift's transactions"
+              : "Open a shift to see its transactions"
+        }
       />
 
       <div className="p-4 max-w-2xl mx-auto space-y-3">
@@ -56,16 +61,28 @@ export default function ReceiptsPage() {
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1"
           />
-          <Input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="w-auto"
-          />
+          {isAdmin && (
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-auto"
+            />
+          )}
         </div>
 
         {filtered.length === 0 ? (
-          <EmptyState text={query || dateFilter ? "No receipts match." : "No transactions yet."} />
+          <EmptyState
+            text={
+              query || dateFilter
+                ? "No receipts match."
+                : isAdmin
+                  ? "No transactions yet."
+                  : activeShift
+                    ? "No transactions yet this shift."
+                    : "Open a shift to see its transactions here. Past shifts and other dates are visible to Admin only."
+            }
+          />
         ) : (
           <Card className="divide-y divide-coffee-100">
             {filtered.map((o) => (
