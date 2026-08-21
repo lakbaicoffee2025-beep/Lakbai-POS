@@ -19,7 +19,7 @@ export const NAV_ACCESS: Record<NavKey, Role[]> = {
   receipts: ["admin", "cashier"],
   inventory: ["admin", "stockman"],
   products: ["admin"],
-  expenses: ["admin", "cashier", "stockman"],
+  expenses: ["admin", "stockman"],
   reports: ["admin"],
   users: ["admin"],
   settings: ["admin"],

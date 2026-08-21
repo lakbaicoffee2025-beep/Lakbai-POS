@@ -343,7 +343,10 @@ export interface InventoryMovement {
   refType?: "order" | "purchase_order" | "manual";
   refId?: string;
   note?: string;
-  reason?: string; // e.g. "Expired", "Dropped/Damaged" — mainly used for type "waste"
+  // e.g. "Expired", "Dropped/Damaged" for type "waste"; "Ending Count Discrepancy" /
+  // "Beginning Count Discrepancy" / "Actual Count (Final)" for count-driven adjustments —
+  // flagged distinctly in the Movement Log.
+  reason?: string;
   photoDataUrl?: string; // optional compressed photo evidence, mainly for type "waste"
   createdBy: string;
   createdByName: string;

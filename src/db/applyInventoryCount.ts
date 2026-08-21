@@ -2,12 +2,31 @@ import { db } from "./db";
 import { newId } from "../lib/id";
 import type { InventoryCount, InventoryCountLine, InventoryCountType } from "../types";
 
+function countTypeLabel(type: InventoryCountType): string {
+  if (type === "opening") return "Beginning";
+  if (type === "closing") return "Ending";
+  return "Actual";
+}
+
+/**
+ * The reason flagged on each reconciling movement, so a discrepancy between
+ * what the ending count found and what the system expected — and an
+ * admin-run Actual Count overriding everything to a new authoritative
+ * figure — both stand out distinctly in the Movement Log.
+ */
+function countReason(type: InventoryCountType): string {
+  if (type === "actual") return "Actual Count (Final)";
+  return `${countTypeLabel(type)} Count Discrepancy`;
+}
+
 /**
  * Records an inventory count — daily opening/closing, or an admin-run
  * actual/physical count taken any time — and reconciles stock to whatever
  * was physically counted (skipping ingredients whose count matches the
  * system already). Each reconciling adjustment is logged as a normal
- * inventory movement, same as a manual stock adjustment.
+ * inventory movement, tagged with a reason so it's flagged distinctly in
+ * the Movement Log, and carries forward whatever notes were entered on
+ * this count submission.
  */
 export async function submitInventoryCount(
   type: InventoryCountType,
@@ -51,9 +70,8 @@ export async function submitInventoryCount(
           type: variance > 0 ? "adjustment_in" : "adjustment_out",
           qty: variance,
           refType: "manual",
-          note: `${
-            type === "opening" ? "Opening" : type === "closing" ? "Closing" : "Actual"
-          } count for ${date}`,
+          note: `${countTypeLabel(type)} count for ${date}${notes ? ` — ${notes}` : ""}`,
+          reason: countReason(type),
           createdBy: userId,
           createdByName: userName,
           createdAt: Date.now(),

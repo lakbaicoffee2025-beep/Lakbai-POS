@@ -10,6 +10,8 @@ import { useSettingsStore } from "../store/settingsStore";
 import { PageHeader, Card, Button, Badge, EmptyState } from "../components/ui";
 import ShiftReportView from "../components/ShiftReportView";
 import CloseShiftModal from "./CloseShiftModal";
+import PaidOutModal from "./PaidOutModal";
+import { PAID_OUT_CATEGORY } from "../db/paidOut";
 import type { Expense, Order, Shift } from "../types";
 
 export default function ShiftPage() {
@@ -20,6 +22,7 @@ export default function ShiftPage() {
   const blind = currentUser.role === "cashier" && !!settings?.hideSalesFromCashiers;
 
   const [closeOpen, setCloseOpen] = useState(false);
+  const [paidOutOpen, setPaidOutOpen] = useState(false);
   const [viewShift, setViewShift] = useState<Shift | null>(null);
 
   const pastShifts = useLiveQuery(
@@ -52,6 +55,9 @@ export default function ShiftPage() {
     activeShift && activeOrders && activeExpenses
       ? computeShiftSummary(activeShift, activeOrders, activeExpenses)
       : null;
+
+  const paidOuts = (activeExpenses ?? []).filter((e) => e.category === PAID_OUT_CATEGORY);
+  const paidOutTotal = paidOuts.reduce((s, e) => s + e.amount, 0);
 
   return (
     <div>
@@ -95,9 +101,44 @@ export default function ShiftPage() {
               )
             )}
 
-            <Button className="w-full" size="lg" onClick={() => setCloseOpen(true)}>
-              Close Shift
-            </Button>
+            {paidOuts.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-xs font-bold text-coffee-500 uppercase tracking-wide">
+                    Paid Outs
+                  </h4>
+                  <span className="text-xs font-semibold text-coffee-600">
+                    -{formatMoney(paidOutTotal, symbol)}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {paidOuts.map((e) => (
+                    <div
+                      key={e.id}
+                      className="flex items-center justify-between text-xs bg-coffee-50 rounded-lg px-3 py-2"
+                    >
+                      <span className="text-coffee-700 truncate">{e.description}</span>
+                      <span className="font-semibold text-coffee-900 shrink-0 ml-2">
+                        {formatMoney(e.amount, symbol)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setPaidOutOpen(true)}
+              >
+                Paid Out
+              </Button>
+              <Button className="flex-[2]" size="lg" onClick={() => setCloseOpen(true)}>
+                Close Shift
+              </Button>
+            </div>
           </Card>
         ) : (
           <Card className="p-6 text-center">
@@ -160,6 +201,10 @@ export default function ShiftPage() {
           onClose={() => setCloseOpen(false)}
           onClosed={() => setCloseOpen(false)}
         />
+      )}
+
+      {paidOutOpen && activeShift && (
+        <PaidOutModal shiftId={activeShift.id} onClose={() => setPaidOutOpen(false)} />
       )}
 
       {viewShift && (

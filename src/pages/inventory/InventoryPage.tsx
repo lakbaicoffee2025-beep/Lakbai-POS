@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "../../components/ui";
+import { useAuthStore } from "../../store/authStore";
 import StockDashboardTab from "./StockDashboardTab";
 import IngredientsTab from "./IngredientsTab";
 import RestockTab from "./RestockTab";
@@ -9,7 +10,7 @@ import MovementLogTab from "./MovementLogTab";
 import DailyCountTab from "./DailyCountTab";
 import SpoilageTab from "./SpoilageTab";
 
-const TABS = [
+const ALL_TABS = [
   { key: "dashboard", label: "Dashboard" },
   { key: "ingredients", label: "Ingredients" },
   { key: "restock", label: "Restock" },
@@ -17,12 +18,15 @@ const TABS = [
   { key: "spoilage", label: "Spoilage" },
   { key: "purchase-orders", label: "Purchase Orders" },
   { key: "suppliers", label: "Suppliers" },
-  { key: "log", label: "Movement Log" },
+  { key: "log", label: "Movement Log", adminOnly: true },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = (typeof ALL_TABS)[number]["key"];
 
 export default function InventoryPage() {
+  const currentUser = useAuthStore((s) => s.currentUser)!;
+  const isAdmin = currentUser.role === "admin";
+  const TABS = ALL_TABS.filter((t) => !("adminOnly" in t && t.adminOnly) || isAdmin);
   const [tab, setTab] = useState<TabKey>("dashboard");
 
   return (
