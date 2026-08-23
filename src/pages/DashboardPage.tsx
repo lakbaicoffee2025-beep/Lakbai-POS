@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format, subDays } from "date-fns";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { db } from "../db/db";
 import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
@@ -24,6 +33,44 @@ interface ProductAgg {
   name: string;
   qty: number;
   revenue: number;
+}
+
+interface HourBucket {
+  hourStart: number;
+  label: string;
+  sales: number;
+}
+
+/**
+ * One bucket per clock hour from the shift's start hour through its end hour
+ * (or the current hour if still open), 0-filled for any hour with no sales —
+ * so a quiet hour in the middle of a shift still shows up as a gap, not a
+ * missing bar.
+ */
+function hourlyBuckets(shiftStart: number, shiftEnd: number, orders: Order[]): HourBucket[] {
+  const firstHour = new Date(shiftStart);
+  firstHour.setMinutes(0, 0, 0);
+  const lastHour = new Date(shiftEnd);
+  lastHour.setMinutes(0, 0, 0);
+
+  const buckets: HourBucket[] = [];
+  let prevDay = "";
+  for (let t = firstHour.getTime(); t <= lastHour.getTime(); t += 60 * 60 * 1000) {
+    const d = new Date(t);
+    const day = format(d, "MMM d");
+    const label = day === prevDay ? format(d, "h a") : format(d, "MMM d, h a");
+    prevDay = day;
+    buckets.push({ hourStart: t, label, sales: 0 });
+  }
+
+  for (const o of orders) {
+    const bucket = buckets.find(
+      (b) => o.createdAt >= b.hourStart && o.createdAt < b.hourStart + 60 * 60 * 1000
+    );
+    if (bucket) bucket.sales += o.total - orderRefundedTotal(o);
+  }
+
+  return buckets;
 }
 
 function aggregateProducts(orders: Order[]): ProductAgg[] {
@@ -143,6 +190,72 @@ export default function DashboardPage() {
   }, [rangeOrders, productId]);
 
   const selectedProduct = (products ?? []).find((p) => p.id === productId);
+
+  // ---- Per-shift breakdown: products sold + hourly sales ----
+  const allShifts = useLiveQuery(
+    () => db.shifts.orderBy("startedAt").reverse().toArray(),
+    []
+  );
+  const allProducts = useLiveQuery(() => db.products.toArray(), []);
+  const categories = useLiveQuery(() => db.categories.toArray(), []);
+  const [selectedShiftId, setSelectedShiftId] = useState("");
+  const [shiftCategoryFilter, setShiftCategoryFilter] = useState("all");
+
+  const selectedShift = (allShifts ?? []).find((s) => s.id === selectedShiftId);
+
+  const shiftOrders = useLiveQuery(
+    () =>
+      selectedShiftId
+        ? db.orders
+            .where("shiftId")
+            .equals(selectedShiftId)
+            .filter((o) => o.status !== "voided")
+            .toArray()
+        : Promise.resolve<Order[]>([]),
+    [selectedShiftId]
+  );
+
+  const categoryNameByProductId = useMemo(() => {
+    const productCatId = new Map((allProducts ?? []).map((p) => [p.id, p.categoryId]));
+    const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
+    const map = new Map<string, string>();
+    for (const [productId, catId] of productCatId) {
+      map.set(productId, catName.get(catId) ?? "Uncategorized");
+    }
+    return map;
+  }, [allProducts, categories]);
+
+  const shiftProductAgg = useMemo(
+    () => aggregateProducts(shiftOrders ?? []).sort((a, b) => b.qty - a.qty),
+    [shiftOrders]
+  );
+
+  const shiftCategoryTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const p of shiftProductAgg) {
+      const cat = categoryNameByProductId.get(p.productId) ?? "Uncategorized";
+      totals.set(cat, (totals.get(cat) ?? 0) + p.qty);
+    }
+    return Array.from(totals.entries())
+      .map(([name, qty]) => ({ name, qty }))
+      .sort((a, b) => b.qty - a.qty);
+  }, [shiftProductAgg, categoryNameByProductId]);
+
+  const shiftProductsFiltered =
+    shiftCategoryFilter === "all"
+      ? shiftProductAgg
+      : shiftProductAgg.filter(
+          (p) => (categoryNameByProductId.get(p.productId) ?? "Uncategorized") === shiftCategoryFilter
+        );
+
+  const hourlyChartData = useMemo(() => {
+    if (!selectedShift) return [];
+    return hourlyBuckets(
+      selectedShift.startedAt,
+      selectedShift.endedAt ?? Date.now(),
+      shiftOrders ?? []
+    );
+  }, [selectedShift, shiftOrders]);
 
   return (
     <div>
@@ -290,6 +403,137 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold text-coffee-800 mb-2">Shift Sales Breakdown</h3>
+          <Card className="p-4 space-y-4">
+            <div>
+              <label className="text-xs text-coffee-400 mb-1 block">Shift</label>
+              <Select
+                value={selectedShiftId}
+                onChange={(e) => {
+                  setSelectedShiftId(e.target.value);
+                  setShiftCategoryFilter("all");
+                }}
+              >
+                <option value="">Select a shift…</option>
+                {(allShifts ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.cashierName} · {format(s.startedAt, "MMM d, h:mm a")}
+                    {s.status === "open" ? " (Ongoing)" : ""}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {!selectedShift ? (
+              <p className="text-xs text-coffee-400">
+                Pick a shift to see the products sold, category breakdown, and hourly sales for
+                it.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <div className="text-xs font-semibold text-coffee-500 mb-1.5">By Category</div>
+                  {shiftCategoryTotals.length === 0 ? (
+                    <p className="text-xs text-coffee-400">No sales this shift.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setShiftCategoryFilter("all")}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                          shiftCategoryFilter === "all"
+                            ? "bg-coffee-900 text-cream-50 border-coffee-900"
+                            : "border-coffee-200 text-coffee-700"
+                        }`}
+                      >
+                        All ({shiftProductAgg.reduce((s, p) => s + p.qty, 0)})
+                      </button>
+                      {shiftCategoryTotals.map((c) => (
+                        <button
+                          key={c.name}
+                          onClick={() => setShiftCategoryFilter(c.name)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                            shiftCategoryFilter === c.name
+                              ? "bg-coffee-900 text-cream-50 border-coffee-900"
+                              : "border-coffee-200 text-coffee-700"
+                          }`}
+                        >
+                          {c.name} ({c.qty})
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="text-xs font-semibold text-coffee-500 mb-1.5">
+                    Products Sold{shiftCategoryFilter !== "all" ? ` · ${shiftCategoryFilter}` : ""}
+                  </div>
+                  {shiftProductsFiltered.length === 0 ? (
+                    <EmptyState text="No products sold in this category." />
+                  ) : (
+                    <div className="rounded-lg border border-coffee-100 divide-y divide-coffee-100">
+                      {shiftProductsFiltered.map((p) => (
+                        <div
+                          key={p.productId}
+                          className="flex items-center justify-between px-3 py-2 text-sm"
+                        >
+                          <span className="text-coffee-700 truncate">{p.name}</span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-coffee-500">{p.qty}x</span>
+                            <span className="font-semibold text-coffee-900">
+                              {formatMoney(p.revenue, symbol)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="text-xs font-semibold text-coffee-500 mb-1.5">Hourly Sales</div>
+                  {hourlyChartData.length === 0 ? (
+                    <p className="text-xs text-coffee-400">No hours to show yet.</p>
+                  ) : (
+                    <div style={{ width: "100%", height: 220 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={hourlyChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                          <CartesianGrid vertical={false} stroke="#f0e4d5" />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 11, fill: "#b98652" }}
+                            axisLine={{ stroke: "#e0c8ab" }}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11, fill: "#b98652" }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={44}
+                            tickFormatter={(v: number) => v.toLocaleString()}
+                          />
+                          <Tooltip
+                            cursor={{ fill: "#f0e4d5" }}
+                            contentStyle={{
+                              border: "1px solid #e0c8ab",
+                              borderRadius: 8,
+                              fontSize: 12,
+                            }}
+                            formatter={(v) => [formatMoney(Number(v) || 0, symbol), "Sales"]}
+                          />
+                          <Bar dataKey="sales" fill="#d97b3f" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </Card>
         </div>
