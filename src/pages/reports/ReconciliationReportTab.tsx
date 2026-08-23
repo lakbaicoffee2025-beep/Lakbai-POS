@@ -2,13 +2,11 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format, subDays } from "date-fns";
 import { db } from "../../db/db";
-import { computeDailyReconciliation, type ReconciliationRow } from "../../lib/reconciliation";
+import { computeDailyReconciliation, isFlagged } from "../../lib/reconciliation";
 import { formatMoney } from "../../lib/format";
 import { downloadCsv } from "../../lib/csvExport";
 import { useSettingsStore } from "../../store/settingsStore";
 import { Card, Badge, Button, EmptyState } from "../../components/ui";
-
-const EPSILON = 1e-9;
 
 function todayStr(): string {
   return format(new Date(), "yyyy-MM-dd");
@@ -19,10 +17,6 @@ function dayBounds(dateStr: string): [number, number] {
     new Date(dateStr + "T00:00:00").getTime(),
     new Date(dateStr + "T23:59:59.999").getTime(),
   ];
-}
-
-function isFlagged(r: ReconciliationRow): boolean {
-  return r.discrepancy !== null && Math.abs(r.discrepancy) > EPSILON;
 }
 
 type ViewMode = "day" | "week";

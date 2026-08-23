@@ -1,5 +1,12 @@
 import type { Ingredient, InventoryCount, InventoryMovement } from "../types";
 
+const EPSILON = 1e-9;
+
+/** True when a row's discrepancy is non-zero and known (both sides counted). */
+export function isFlagged(r: Pick<ReconciliationRow, "discrepancy">): boolean {
+  return r.discrepancy !== null && Math.abs(r.discrepancy) > EPSILON;
+}
+
 export interface ReconciliationRow {
   ingredientId: string;
   ingredientName: string;
