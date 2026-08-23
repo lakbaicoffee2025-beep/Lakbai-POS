@@ -4,12 +4,14 @@ import SalesReportTab from "./SalesReportTab";
 import ShiftsReportTab from "./ShiftsReportTab";
 import ExpensesReportTab from "./ExpensesReportTab";
 import InventoryReportTab from "./InventoryReportTab";
+import ReconciliationReportTab from "./ReconciliationReportTab";
 
 const TABS = [
   { key: "sales", label: "Sales" },
   { key: "shifts", label: "Shifts" },
   { key: "expenses", label: "Expenses" },
   { key: "inventory", label: "Inventory" },
+  { key: "reconciliation", label: "Reconciliation" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -39,6 +41,7 @@ export default function ReportsPage() {
       {tab === "shifts" && <ShiftsReportTab />}
       {tab === "expenses" && <ExpensesReportTab />}
       {tab === "inventory" && <InventoryReportTab />}
+      {tab === "reconciliation" && <ReconciliationReportTab />}
     </div>
   );
 }
