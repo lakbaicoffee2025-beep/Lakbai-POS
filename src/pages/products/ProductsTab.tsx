@@ -36,10 +36,82 @@ export default function ProductsTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [activeCat, setActiveCat] = useState<string>("all");
 
-  const filteredProducts = (products ?? []).filter((p) =>
-    p.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"category" | null>(null);
+  const [bulkCategoryId, setBulkCategoryId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const filteredProducts = (products ?? []).filter((p) => {
+    if (activeCat !== "all" && p.categoryId !== activeCat) return false;
+    return p.name.toLowerCase().includes(query.toLowerCase());
+  });
+
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  }
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function selectAllFiltered() {
+    setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (
+      !confirm(
+        `Delete ${selectedIds.size} selected product(s)? This can't be undone. Past sales already made with these products are unaffected.`
+      )
+    ) {
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      await db.products.bulkDelete(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkShowHide(active: boolean) {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await db.products.bulkUpdate(
+        Array.from(selectedIds).map((id) => ({ key: id, changes: { active } }))
+      );
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkCategory() {
+    if (!bulkCategoryId || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await db.products.bulkUpdate(
+        Array.from(selectedIds).map((id) => ({ key: id, changes: { categoryId: bulkCategoryId } }))
+      );
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      setBulkAction(null);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   function openCreate() {
     setForm(emptyProduct(categories?.[0]?.id ?? ""));
@@ -108,6 +180,9 @@ export default function ProductsTab() {
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1"
         />
+        <Button variant="secondary" onClick={toggleSelectMode}>
+          {selectMode ? "Cancel" : "Select"}
+        </Button>
         <Button onClick={openCreate} disabled={!categories || categories.length === 0}>
           + New Product
         </Button>
@@ -118,13 +193,90 @@ export default function ProductsTab() {
         </div>
       )}
 
+      {categories && categories.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          <button
+            onClick={() => setActiveCat("all")}
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium ${
+              activeCat === "all" ? "bg-coffee-900 text-cream-50" : "bg-coffee-100 text-coffee-700"
+            }`}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveCat(c.id)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium ${
+                activeCat === c.id ? "bg-coffee-900 text-cream-50" : "bg-coffee-100 text-coffee-700"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selectMode && (
+        <Card className="p-3 space-y-2 border-accent/40 bg-accent/5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-coffee-700">{selectedIds.size} selected</span>
+            <button className="font-semibold text-accent-dark" onClick={selectAllFiltered}>
+              Select all ({filteredProducts.length})
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size === 0}
+              onClick={() => setBulkAction("category")}
+            >
+              Change Category
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size === 0 || bulkBusy}
+              onClick={() => handleBulkShowHide(true)}
+            >
+              Show
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size === 0 || bulkBusy}
+              onClick={() => handleBulkShowHide(false)}
+            >
+              Hide
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={selectedIds.size === 0 || bulkBusy}
+              onClick={handleBulkDelete}
+            >
+              Delete Selected
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {filteredProducts.length === 0 ? (
         <EmptyState text={query ? "No products match your search." : "No products yet."} />
       ) : (
         <Card className="divide-y divide-coffee-100">
           {filteredProducts.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0">
+            <div key={p.id} className="flex items-center justify-between px-4 py-3 gap-2">
+              {selectMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(p.id)}
+                  onChange={() => toggleSelected(p.id)}
+                  className="w-4 h-4 shrink-0 accent-accent"
+                />
+              )}
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">
                   {p.name}
                   {!p.active && <Badge>Inactive</Badge>}
@@ -134,17 +286,19 @@ export default function ProductsTab() {
                   {formatMoney(p.basePrice, symbol)} · {p.recipe.length} ingredient(s)
                 </div>
               </div>
-              <div className="flex gap-3 text-xs font-semibold shrink-0">
-                <button className="text-coffee-600" onClick={() => toggleActive(p)}>
-                  {p.active ? "Hide" : "Show"}
-                </button>
-                <button className="text-accent-dark" onClick={() => openEdit(p)}>
-                  Edit
-                </button>
-                <button className="text-red-600" onClick={() => handleDelete(p)}>
-                  Delete
-                </button>
-              </div>
+              {!selectMode && (
+                <div className="flex gap-3 text-xs font-semibold shrink-0">
+                  <button className="text-coffee-600" onClick={() => toggleActive(p)}>
+                    {p.active ? "Hide" : "Show"}
+                  </button>
+                  <button className="text-accent-dark" onClick={() => openEdit(p)}>
+                    Edit
+                  </button>
+                  <button className="text-red-600" onClick={() => handleDelete(p)}>
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </Card>
@@ -280,6 +434,31 @@ export default function ProductsTab() {
               )}
             </div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkAction === "category"}
+        onClose={() => setBulkAction(null)}
+        title={`Change Category · ${selectedIds.size} product(s)`}
+        footer={
+          <Button onClick={handleBulkCategory} disabled={bulkBusy || !bulkCategoryId} className="w-full">
+            {bulkBusy ? "Applying…" : "Apply to Selected"}
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Select value={bulkCategoryId} onChange={(e) => setBulkCategoryId(e.target.value)}>
+            <option value="">Select a category…</option>
+            {(categories ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-coffee-400">
+            Moves all {selectedIds.size} selected product(s) into this category.
+          </p>
         </div>
       </Modal>
     </div>

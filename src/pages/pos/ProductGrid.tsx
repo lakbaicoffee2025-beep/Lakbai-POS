@@ -8,6 +8,17 @@ import ProductModal from "./ProductModal";
 import { useCartStore } from "../../store/cartStore";
 import type { CartLineModifier, ProductVariant } from "../../types";
 
+type ViewMode = "grid" | "list";
+const VIEW_MODE_KEY = "lakbai-pos-view-mode";
+
+function loadViewMode(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
 export default function ProductGrid({ headerAction }: { headerAction?: ReactNode }) {
   const categories = useLiveQuery(
     () => db.categories.orderBy("sortOrder").toArray(),
@@ -28,6 +39,19 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
   const [query, setQuery] = useState("");
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const addLine = useCartStore((s) => s.addLine);
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+
+  function toggleViewMode() {
+    setViewMode((prev) => {
+      const next = prev === "grid" ? "list" : "grid";
+      try {
+        localStorage.setItem(VIEW_MODE_KEY, next);
+      } catch {
+        // best-effort only — a private window or blocked storage just won't remember it
+      }
+      return next;
+    });
+  }
 
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -92,6 +116,13 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
             placeholder="Search products…"
             className="flex-1 min-w-0 rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           />
+          <button
+            onClick={toggleViewMode}
+            aria-label={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white"
+          >
+            {viewMode === "grid" ? "☰" : "▦"}
+          </button>
           {headerAction}
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
@@ -122,38 +153,71 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 landscape:p-2">
-        <div className="grid grid-cols-2 landscape:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-3 landscape:gap-2">
-          {filtered.map((p) => {
-            const oos = isOutOfStock(p);
-            return (
-              <button
-                key={p.id}
-                onClick={() => handleQuickAdd(p)}
-                className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform"
-              >
-                <div className="w-full aspect-square landscape:aspect-[4/3] rounded-lg bg-coffee-100 mb-2 landscape:mb-1 flex items-center justify-center text-2xl">
-                  ☕
-                </div>
-                <div className="text-sm font-semibold text-coffee-900 leading-tight line-clamp-2 min-h-[2.2em] landscape:min-h-0">
-                  {p.name}
-                </div>
-                <div className="text-sm font-bold text-accent-dark mt-1 landscape:mt-0.5">
-                  {formatMoney(p.basePrice, symbol)}
-                </div>
-                {oos && (
-                  <div className="text-[11px] font-medium text-red-600 mt-1">
-                    Out of stock
+        {viewMode === "grid" ? (
+          <div className="grid grid-cols-2 landscape:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-3 landscape:gap-2">
+            {filtered.map((p) => {
+              const oos = isOutOfStock(p);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleQuickAdd(p)}
+                  className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform"
+                >
+                  <div className="w-full aspect-square landscape:aspect-[4/3] rounded-lg bg-coffee-100 mb-2 landscape:mb-1 flex items-center justify-center text-2xl">
+                    ☕
                   </div>
-                )}
-              </button>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="col-span-full text-center py-10 text-coffee-400 text-sm">
-              No products found.
-            </div>
-          )}
-        </div>
+                  <div className="text-sm font-semibold text-coffee-900 leading-tight line-clamp-2 min-h-[2.2em] landscape:min-h-0">
+                    {p.name}
+                  </div>
+                  <div className="text-sm font-bold text-accent-dark mt-1 landscape:mt-0.5">
+                    {formatMoney(p.basePrice, symbol)}
+                  </div>
+                  {oos && (
+                    <div className="text-[11px] font-medium text-red-600 mt-1">
+                      Out of stock
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-10 text-coffee-400 text-sm">
+                No products found.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {filtered.map((p) => {
+              const oos = isOutOfStock(p);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleQuickAdd(p)}
+                  className="flex items-center gap-3 text-left bg-white rounded-lg border border-coffee-100 px-3 py-2 shadow-sm active:scale-[0.99] transition-transform"
+                >
+                  <div className="w-9 h-9 shrink-0 rounded-lg bg-coffee-100 flex items-center justify-center text-lg">
+                    ☕
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-coffee-900 truncate">
+                      {p.name}
+                    </div>
+                    {oos && (
+                      <div className="text-[11px] font-medium text-red-600">Out of stock</div>
+                    )}
+                  </div>
+                  <div className="text-sm font-bold text-accent-dark shrink-0">
+                    {formatMoney(p.basePrice, symbol)}
+                  </div>
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-10 text-coffee-400 text-sm">No products found.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {openProduct && (

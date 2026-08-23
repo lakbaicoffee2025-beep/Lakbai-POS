@@ -7,6 +7,22 @@ import { useAuthStore } from "../../store/authStore";
 import type { Ingredient, IngredientUnit } from "../../types";
 import { Button, Card, Input, Modal, Select, Badge, EmptyState } from "../../components/ui";
 
+async function isIngredientInUse(ingredientId: string): Promise<boolean> {
+  const [products, modifierGroups] = await Promise.all([
+    db.products.toArray(),
+    db.modifierGroups.toArray(),
+  ]);
+  const inProducts = products.some(
+    (p) =>
+      p.recipe.some((r) => r.ingredientId === ingredientId) ||
+      p.variants.some((v) => v.recipe.some((r) => r.ingredientId === ingredientId))
+  );
+  const inModifiers = modifierGroups.some((g) =>
+    g.options.some((o) => o.recipe.some((r) => r.ingredientId === ingredientId))
+  );
+  return inProducts || inModifiers;
+}
+
 const UNITS: IngredientUnit[] = ["g", "kg", "ml", "L", "pc", "shot", "scoop", "oz"];
 
 function emptyIngredient(): Omit<Ingredient, "id" | "updatedAt"> {
@@ -18,7 +34,9 @@ export default function IngredientsTab() {
     () => db.ingredients.toArray().then((l) => l.sort((a, b) => a.name.localeCompare(b.name))),
     []
   );
+  const suppliers = useLiveQuery(() => db.suppliers.toArray(), []);
   const currentUser = useAuthStore((s) => s.currentUser)!;
+  const isAdmin = currentUser.role === "admin";
 
   const [form, setForm] = useState(emptyIngredient());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -34,9 +52,98 @@ export default function IngredientsTab() {
   const noteRequired = adjustType === "adjustment_out" || adjustType === "waste";
   const [query, setQuery] = useState("");
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"reorder" | "supplier" | null>(null);
+  const [bulkReorderLevel, setBulkReorderLevel] = useState("0");
+  const [bulkSupplierId, setBulkSupplierId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   const filteredIngredients = (ingredients ?? []).filter((i) =>
     i.name.toLowerCase().includes(query.toLowerCase())
   );
+
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  }
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function selectAllFiltered() {
+    setSelectedIds(new Set(filteredIngredients.map((i) => i.id)));
+  }
+
+  async function handleDelete(i: Ingredient) {
+    const inUse = await isIngredientInUse(i.id);
+    const warning = inUse
+      ? ` This ingredient is used in one or more product/modifier recipes — those recipes will no longer deduct it on sale.`
+      : "";
+    if (confirm(`Delete "${i.name}"? This can't be undone.${warning}`)) {
+      await db.ingredients.delete(i.id);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (
+      !confirm(
+        `Delete ${selectedIds.size} selected ingredient(s)? This can't be undone. Any that are used in a product/modifier recipe will no longer deduct on sale.`
+      )
+    ) {
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      await db.ingredients.bulkDelete(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkReorderLevel() {
+    const level = parseFloat(bulkReorderLevel);
+    if (!Number.isFinite(level) || level < 0 || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await db.ingredients.bulkUpdate(
+        Array.from(selectedIds).map((id) => ({
+          key: id,
+          changes: { reorderLevel: level, updatedAt: Date.now() },
+        }))
+      );
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      setBulkAction(null);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkSupplier() {
+    if (!bulkSupplierId || selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await db.ingredients.bulkUpdate(
+        Array.from(selectedIds).map((id) => ({
+          key: id,
+          changes: { supplierId: bulkSupplierId, updatedAt: Date.now() },
+        }))
+      );
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      setBulkAction(null);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   function openCreate() {
     setForm(emptyIngredient());
@@ -102,8 +209,52 @@ export default function IngredientsTab() {
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1"
         />
+        {isAdmin && (
+          <Button variant="secondary" onClick={toggleSelectMode}>
+            {selectMode ? "Cancel" : "Select"}
+          </Button>
+        )}
         <Button onClick={openCreate}>+ New Ingredient</Button>
       </div>
+
+      {selectMode && (
+        <Card className="p-3 space-y-2 border-accent/40 bg-accent/5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-coffee-700">
+              {selectedIds.size} selected
+            </span>
+            <button className="font-semibold text-accent-dark" onClick={selectAllFiltered}>
+              Select all ({filteredIngredients.length})
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size === 0}
+              onClick={() => setBulkAction("reorder")}
+            >
+              Set Reorder Level
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size === 0 || !suppliers || suppliers.length === 0}
+              onClick={() => setBulkAction("supplier")}
+            >
+              Assign Supplier
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={selectedIds.size === 0 || bulkBusy}
+              onClick={handleBulkDelete}
+            >
+              Delete Selected
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {filteredIngredients.length === 0 ? (
         <EmptyState text={query ? "No ingredients match your search." : "No ingredients yet."} />
@@ -113,7 +264,15 @@ export default function IngredientsTab() {
             const low = i.stockQty <= i.reorderLevel;
             return (
               <div key={i.id} className="flex items-center justify-between px-4 py-3 gap-2">
-                <div className="min-w-0">
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(i.id)}
+                    onChange={() => toggleSelected(i.id)}
+                    className="w-4 h-4 shrink-0 accent-accent"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">
                     {i.name}
                     {low && <Badge tone="danger">Low Stock</Badge>}
@@ -123,23 +282,30 @@ export default function IngredientsTab() {
                     {i.reorderLevel} {i.unit}
                   </div>
                 </div>
-                <div className="flex gap-3 text-xs font-semibold shrink-0">
-                  <button
-                    className="text-coffee-600"
-                    onClick={() => {
-                      setAdjustTarget(i);
-                      setAdjustType("adjustment_in");
-                      setAdjustQty("0");
-                      setAdjustNote("");
-                      setAdjustError(null);
-                    }}
-                  >
-                    Adjust
-                  </button>
-                  <button className="text-accent-dark" onClick={() => openEdit(i)}>
-                    Edit
-                  </button>
-                </div>
+                {!selectMode && (
+                  <div className="flex gap-3 text-xs font-semibold shrink-0">
+                    <button
+                      className="text-coffee-600"
+                      onClick={() => {
+                        setAdjustTarget(i);
+                        setAdjustType("adjustment_in");
+                        setAdjustQty("0");
+                        setAdjustNote("");
+                        setAdjustError(null);
+                      }}
+                    >
+                      Adjust
+                    </button>
+                    <button className="text-accent-dark" onClick={() => openEdit(i)}>
+                      Edit
+                    </button>
+                    {isAdmin && (
+                      <button className="text-red-600" onClick={() => handleDelete(i)}>
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -264,6 +430,54 @@ export default function IngredientsTab() {
               Current stock: {adjustTarget.stockQty} {adjustTarget.unit}
             </p>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkAction === "reorder"}
+        onClose={() => setBulkAction(null)}
+        title={`Set Reorder Level · ${selectedIds.size} ingredient(s)`}
+        footer={
+          <Button onClick={handleBulkReorderLevel} disabled={bulkBusy} className="w-full">
+            {bulkBusy ? "Applying…" : "Apply to Selected"}
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Input
+            type="number"
+            placeholder="New reorder level"
+            value={bulkReorderLevel}
+            onChange={(e) => setBulkReorderLevel(e.target.value)}
+          />
+          <p className="text-xs text-coffee-400">
+            Overwrites the reorder level on all {selectedIds.size} selected ingredient(s).
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkAction === "supplier"}
+        onClose={() => setBulkAction(null)}
+        title={`Assign Supplier · ${selectedIds.size} ingredient(s)`}
+        footer={
+          <Button onClick={handleBulkSupplier} disabled={bulkBusy || !bulkSupplierId} className="w-full">
+            {bulkBusy ? "Applying…" : "Apply to Selected"}
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Select value={bulkSupplierId} onChange={(e) => setBulkSupplierId(e.target.value)}>
+            <option value="">Select a supplier…</option>
+            {(suppliers ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-coffee-400">
+            Sets the default supplier on all {selectedIds.size} selected ingredient(s).
+          </p>
         </div>
       </Modal>
     </div>

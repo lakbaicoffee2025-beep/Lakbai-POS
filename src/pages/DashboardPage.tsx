@@ -52,22 +52,34 @@ function aggregateProducts(orders: Order[]): ProductAgg[] {
 
 type RangePreset = "7d" | "30d" | "custom";
 
+type StatsRangePreset = "today" | "7d" | "30d" | "custom";
+
 export default function DashboardPage() {
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
 
-  // ---- Today, real-time ----
-  const [todayStart, todayEnd] = dayBounds(todayStr());
-  const todayOrders = useLiveQuery(
+  // ---- Main stats, selectable date/range ----
+  const [statsPreset, setStatsPreset] = useState<StatsRangePreset>("today");
+  const [statsFrom, setStatsFrom] = useState(todayStr());
+  const [statsTo, setStatsTo] = useState(todayStr());
+
+  const [statsStart, statsEnd] = useMemo(() => {
+    if (statsPreset === "today") return dayBounds(todayStr());
+    if (statsPreset === "7d") return dayBounds2(subDays(new Date(), 6), new Date());
+    if (statsPreset === "30d") return dayBounds2(subDays(new Date(), 29), new Date());
+    return [dayBounds(statsFrom)[0], dayBounds(statsTo)[1]];
+  }, [statsPreset, statsFrom, statsTo]);
+
+  const statsOrders = useLiveQuery(
     () =>
       db.orders
         .where("createdAt")
-        .between(todayStart, todayEnd, true, true)
+        .between(statsStart, statsEnd, true, true)
         .filter((o) => o.status === "completed")
         .toArray(),
-    [todayStart, todayEnd]
+    [statsStart, statsEnd]
   );
 
-  const orders = todayOrders ?? [];
+  const orders = statsOrders ?? [];
   const orderCount = orders.length;
   const netSales = orders.reduce((s, o) => s + o.total - orderRefundedTotal(o), 0);
   const cash = orders.reduce((s, o) => {
@@ -80,9 +92,18 @@ export default function DashboardPage() {
   }, 0);
 
   const top5 = useMemo(
-    () => aggregateProducts(todayOrders ?? []).sort((a, b) => b.qty - a.qty).slice(0, 5),
-    [todayOrders]
+    () => aggregateProducts(statsOrders ?? []).sort((a, b) => b.qty - a.qty).slice(0, 5),
+    [statsOrders]
   );
+
+  const statsLabel =
+    statsPreset === "today"
+      ? `Today · ${format(new Date(), "MMM d, yyyy")}`
+      : statsPreset === "7d"
+        ? "Last 7 Days"
+        : statsPreset === "30d"
+          ? "Last 30 Days"
+          : `${format(new Date(statsFrom + "T00:00:00"), "MMM d, yyyy")} – ${format(new Date(statsTo + "T00:00:00"), "MMM d, yyyy")}`;
 
   // ---- Product sales lookup, ranged ----
   const products = useLiveQuery(
@@ -128,9 +149,46 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" subtitle="Live sales overview" />
       <div className="p-4 max-w-3xl mx-auto space-y-5">
         <div>
-          <h3 className="text-sm font-bold text-coffee-800 mb-2">
-            Today · {format(new Date(), "MMM d, yyyy")}
-          </h3>
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <h3 className="text-sm font-bold text-coffee-800">{statsLabel}</h3>
+            <div className="flex gap-1.5">
+              {(["today", "7d", "30d", "custom"] as StatsRangePreset[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setStatsPreset(r)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                    statsPreset === r
+                      ? "bg-coffee-900 text-cream-50 border-coffee-900"
+                      : "border-coffee-200 text-coffee-700"
+                  }`}
+                >
+                  {r === "today" ? "Today" : r === "7d" ? "1 Week" : r === "30d" ? "1 Month" : "Custom"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {statsPreset === "custom" && (
+            <div className="flex gap-2 mb-3">
+              <div className="flex-1">
+                <label className="text-xs text-coffee-400 mb-1 block">From</label>
+                <input
+                  type="date"
+                  value={statsFrom}
+                  onChange={(e) => setStatsFrom(e.target.value)}
+                  className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-coffee-400 mb-1 block">To</label>
+                <input
+                  type="date"
+                  value={statsTo}
+                  onChange={(e) => setStatsTo(e.target.value)}
+                  className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat label="Orders" value={String(orderCount)} />
             <Stat label="Net Sales" value={formatMoney(netSales, symbol)} />
@@ -140,9 +198,9 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <h3 className="text-sm font-bold text-coffee-800 mb-2">Top 5 Products Today</h3>
+          <h3 className="text-sm font-bold text-coffee-800 mb-2">Top 5 Products</h3>
           {top5.length === 0 ? (
-            <EmptyState text="No sales yet today." />
+            <EmptyState text="No sales in this range." />
           ) : (
             <Card className="divide-y divide-coffee-100">
               {top5.map((p, i) => (

@@ -7,6 +7,7 @@ import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
 import { useAuthStore } from "../store/authStore";
 import { voidOrder } from "../db/voidOrder";
+import { deleteOrder } from "../db/deleteOrder";
 import { refundOrderItem, refundableQty } from "../db/refundOrder";
 import { Modal, Button, Badge } from "./ui";
 
@@ -33,6 +34,10 @@ export default function ReceiptDetailModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const [refundingLineId, setRefundingLineId] = useState<string | null>(null);
   const [refundQty, setRefundQty] = useState(1);
   const [refundReason, setRefundReason] = useState("");
@@ -55,6 +60,18 @@ export default function ReceiptDetailModal({
       setError(e instanceof Error ? e.message : "Failed to void order");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteOrder(order.id, currentUser.id, currentUser.name);
+      onClose();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Failed to delete receipt");
+      setDeleting(false);
     }
   }
 
@@ -326,6 +343,55 @@ export default function ReceiptDetailModal({
                     onClick={handleVoid}
                   >
                     {submitting ? "Voiding…" : "Confirm Void"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="pt-2 border-t border-coffee-100">
+            {!deleteConfirming ? (
+              <Button
+                variant="danger"
+                className="w-full"
+                onClick={() => setDeleteConfirming(true)}
+              >
+                Delete Receipt
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                {deleteError && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {deleteError}
+                  </div>
+                )}
+                <p className="text-xs text-coffee-400">
+                  Permanently removes this receipt from history — it will no longer appear
+                  anywhere, including reports.
+                  {order.status === "completed" &&
+                    " Restores any ingredient stock this sale still has deducted."}{" "}
+                  This can't be undone.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => {
+                      setDeleteConfirming(false);
+                      setDeleteError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="flex-[2]"
+                    disabled={deleting}
+                    onClick={handleDelete}
+                  >
+                    {deleting ? "Deleting…" : "Confirm Delete"}
                   </Button>
                 </div>
               </div>
