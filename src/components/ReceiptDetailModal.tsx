@@ -67,7 +67,7 @@ export default function ReceiptDetailModal({
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteOrder(order.id, currentUser.id, currentUser.name);
+      await deleteOrder(order.id);
       onClose();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : "Failed to delete receipt");
@@ -369,10 +369,10 @@ export default function ReceiptDetailModal({
                 )}
                 <p className="text-xs text-coffee-400">
                   Permanently removes this receipt from history — it will no longer appear
-                  anywhere, including reports.
-                  {order.status === "completed" &&
-                    " Restores any ingredient stock this sale still has deducted."}{" "}
-                  This can't be undone.
+                  anywhere, including reports. This does not restore any ingredient stock the
+                  sale deducted — only Void or Refund do that, so use Void first if this receipt
+                  hasn't been voided or refunded and the stock also needs to come back. This
+                  can't be undone.
                 </p>
                 <div className="flex gap-2">
                   <Button
