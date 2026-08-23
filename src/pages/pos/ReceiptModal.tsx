@@ -19,22 +19,22 @@ export default function ReceiptModal({
       <div className="space-y-3">
         <div className="text-center">
           <div className="text-3xl">✅</div>
-          <div className="text-lg font-bold text-coffee-900 mt-1">
+          <div className="text-lg font-bold text-coffee-900 mt-1 dark:text-cream-50">
             Order #{order.orderNo}
           </div>
           <div className="text-xs text-coffee-400">
             {format(order.createdAt, "MMM d, yyyy h:mm a")}
           </div>
           {order.customerName && (
-            <div className="text-sm text-coffee-600 mt-1">For: {order.customerName}</div>
+            <div className="text-sm text-coffee-600 mt-1 dark:text-coffee-300">For: {order.customerName}</div>
           )}
         </div>
 
-        <div className="border-t border-b border-dashed border-coffee-200 py-3 space-y-2 text-sm">
+        <div className="border-t border-b border-dashed border-coffee-200 py-3 space-y-2 text-sm dark:border-coffee-700">
           {order.items.map((item) => (
             <div key={item.id} className="flex justify-between gap-2">
               <div className="min-w-0">
-                <div className="font-medium text-coffee-900">
+                <div className="font-medium text-coffee-900 dark:text-cream-50">
                   {item.qty}x {item.productName}
                   {item.variantName ? ` (${item.variantName})` : ""}
                 </div>
@@ -52,23 +52,23 @@ export default function ReceiptModal({
         </div>
 
         <div className="text-sm space-y-1">
-          <div className="flex justify-between text-coffee-600">
+          <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
             <span>Subtotal</span>
             <span>{formatMoney(order.subtotal, symbol)}</span>
           </div>
           {order.discountTotal > 0 && (
-            <div className="flex justify-between text-emerald-600">
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
               <span>Discount</span>
               <span>-{formatMoney(order.discountTotal, symbol)}</span>
             </div>
           )}
           {order.taxTotal > 0 && (
-            <div className="flex justify-between text-coffee-600">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Tax</span>
               <span>{formatMoney(order.taxTotal, symbol)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold text-coffee-900">
+          <div className="flex justify-between text-lg font-bold text-coffee-900 dark:text-cream-50">
             <span>Total</span>
             <span>{formatMoney(order.total, symbol)}</span>
           </div>
@@ -81,7 +81,7 @@ export default function ReceiptModal({
             </span>
           </div>
           {order.payment.method === "cash" && (order.payment.changeDue ?? 0) > 0 && (
-            <div className="flex justify-between font-semibold text-coffee-800">
+            <div className="flex justify-between font-semibold text-coffee-800 dark:text-cream-100">
               <span>Change</span>
               <span>{formatMoney(order.payment.changeDue ?? 0, symbol)}</span>
             </div>

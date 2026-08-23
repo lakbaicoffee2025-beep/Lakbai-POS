@@ -146,7 +146,7 @@ export default function CheckoutModal({
       <div className="space-y-4">
         <div className="text-center py-2">
           <div className="text-xs text-coffee-400">Amount Due</div>
-          <div className="text-3xl font-bold text-coffee-900">
+          <div className="text-3xl font-bold text-coffee-900 dark:text-cream-50">
             {formatMoney(totals.total, symbol)}
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function CheckoutModal({
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             placeholder="e.g. Juan Dela Cruz"
-            className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
           />
         </div>
 
@@ -171,7 +171,7 @@ export default function CheckoutModal({
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize border ${
                 method === m
                   ? "bg-coffee-900 text-cream-50 border-coffee-900"
-                  : "border-coffee-200 text-coffee-700"
+                  : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
               }`}
             >
               {m === "gcash" ? "GCash" : m}
@@ -189,9 +189,9 @@ export default function CheckoutModal({
               inputMode="decimal"
               value={cashTendered}
               onChange={(e) => setCashTendered(e.target.value)}
-              className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+              className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
             />
-            <div className="flex justify-between text-sm mt-2 text-coffee-600">
+            <div className="flex justify-between text-sm mt-2 text-coffee-600 dark:text-coffee-300">
               <span>Change Due</span>
               <span className="font-semibold">{formatMoney(changeDue, symbol)}</span>
             </div>
@@ -209,7 +209,7 @@ export default function CheckoutModal({
                 inputMode="decimal"
                 value={gcashAmount}
                 onChange={(e) => setGcashAmount(e.target.value)}
-                className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
               />
             </div>
             <div>
@@ -219,7 +219,7 @@ export default function CheckoutModal({
               <input
                 value={gcashRef}
                 onChange={(e) => setGcashRef(e.target.value)}
-                className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
               />
             </div>
           </div>
@@ -236,7 +236,7 @@ export default function CheckoutModal({
                 inputMode="decimal"
                 value={splitCash}
                 onChange={(e) => setSplitCash(e.target.value)}
-                className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
               />
             </div>
             <div>
@@ -248,7 +248,7 @@ export default function CheckoutModal({
                 inputMode="decimal"
                 value={splitGcash}
                 onChange={(e) => setSplitGcash(e.target.value)}
-                className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
               />
             </div>
             <div
@@ -265,7 +265,7 @@ export default function CheckoutModal({
         )}
 
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
             {error}
           </div>
         )}

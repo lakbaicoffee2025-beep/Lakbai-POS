@@ -19,7 +19,15 @@ function loadViewMode(): ViewMode {
   }
 }
 
-export default function ProductGrid({ headerAction }: { headerAction?: ReactNode }) {
+export default function ProductGrid({
+  headerAction,
+  darkMode,
+  onToggleDarkMode,
+}: {
+  headerAction?: ReactNode;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
+}) {
   const categories = useLiveQuery(
     () => db.categories.orderBy("sortOrder").toArray(),
     []
@@ -108,20 +116,27 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="p-3 landscape:py-2 space-y-2 landscape:space-y-1.5 border-b border-coffee-100 bg-white shrink-0">
+      <div className="p-3 landscape:py-2 space-y-2 landscape:space-y-1.5 border-b border-coffee-100 bg-white shrink-0 dark:border-coffee-800 dark:bg-coffee-900">
         <div className="flex gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products…"
-            className="flex-1 min-w-0 rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="flex-1 min-w-0 rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50 dark:placeholder-coffee-400"
           />
           <button
             onClick={toggleViewMode}
             aria-label={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
           >
             {viewMode === "grid" ? "☰" : "▦"}
+          </button>
+          <button
+            onClick={onToggleDarkMode}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+          >
+            {darkMode ? "☀️" : "🌙"}
           </button>
           {headerAction}
         </div>
@@ -131,7 +146,7 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
             className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium ${
               activeCat === "all"
                 ? "bg-coffee-900 text-cream-50"
-                : "bg-coffee-100 text-coffee-700"
+                : "bg-coffee-100 text-coffee-700 dark:bg-coffee-800 dark:text-coffee-200"
             }`}
           >
             All
@@ -143,7 +158,7 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
               className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium ${
                 activeCat === c.id
                   ? "bg-coffee-900 text-cream-50"
-                  : "bg-coffee-100 text-coffee-700"
+                  : "bg-coffee-100 text-coffee-700 dark:bg-coffee-800 dark:text-coffee-200"
               }`}
             >
               {c.name}
@@ -161,12 +176,12 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
                 <button
                   key={p.id}
                   onClick={() => handleQuickAdd(p)}
-                  className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform"
+                  className="text-left bg-white rounded-xl border border-coffee-100 p-3 landscape:p-2 shadow-sm active:scale-[0.97] transition-transform dark:bg-coffee-900 dark:border-coffee-800"
                 >
-                  <div className="w-full aspect-square landscape:aspect-[4/3] rounded-lg bg-coffee-100 mb-2 landscape:mb-1 flex items-center justify-center text-2xl">
+                  <div className="w-full aspect-square landscape:aspect-[4/3] rounded-lg bg-coffee-100 mb-2 landscape:mb-1 flex items-center justify-center text-2xl dark:bg-coffee-800">
                     ☕
                   </div>
-                  <div className="text-sm font-semibold text-coffee-900 leading-tight line-clamp-2 min-h-[2.2em] landscape:min-h-0">
+                  <div className="text-sm font-semibold text-coffee-900 leading-tight line-clamp-2 min-h-[2.2em] landscape:min-h-0 dark:text-cream-50">
                     {p.name}
                   </div>
                   <div className="text-sm font-bold text-accent-dark mt-1 landscape:mt-0.5">
@@ -194,13 +209,13 @@ export default function ProductGrid({ headerAction }: { headerAction?: ReactNode
                 <button
                   key={p.id}
                   onClick={() => handleQuickAdd(p)}
-                  className="flex items-center gap-3 text-left bg-white rounded-lg border border-coffee-100 px-3 py-2 shadow-sm active:scale-[0.99] transition-transform"
+                  className="flex items-center gap-3 text-left bg-white rounded-lg border border-coffee-100 px-3 py-2 shadow-sm active:scale-[0.99] transition-transform dark:bg-coffee-900 dark:border-coffee-800"
                 >
-                  <div className="w-9 h-9 shrink-0 rounded-lg bg-coffee-100 flex items-center justify-center text-lg">
+                  <div className="w-9 h-9 shrink-0 rounded-lg bg-coffee-100 flex items-center justify-center text-lg dark:bg-coffee-800">
                     ☕
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-coffee-900 truncate">
+                    <div className="text-sm font-semibold text-coffee-900 truncate dark:text-cream-50">
                       {p.name}
                     </div>
                     {oos && (

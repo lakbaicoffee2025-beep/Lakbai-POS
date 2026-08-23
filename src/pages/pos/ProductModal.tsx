@@ -73,7 +73,7 @@ export default function ProductModal({
       <div className="space-y-5">
         {product.variants.length > 0 && (
           <div>
-            <div className="text-sm font-semibold text-coffee-800 mb-2">
+            <div className="text-sm font-semibold text-coffee-800 dark:text-cream-100 mb-2">
               Size
             </div>
             <div className="flex flex-wrap gap-2">
@@ -84,7 +84,7 @@ export default function ProductModal({
                   className={`px-4 py-2 rounded-lg border text-sm font-medium ${
                     variantId === v.id
                       ? "border-accent bg-accent/10 text-accent-dark"
-                      : "border-coffee-200 text-coffee-700"
+                      : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
                   }`}
                 >
                   {v.name}
@@ -98,7 +98,7 @@ export default function ProductModal({
         {groups.map((g) => (
           <div key={g.id}>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-coffee-800">
+              <div className="text-sm font-semibold text-coffee-800 dark:text-cream-100">
                 {g.name}
               </div>
               <div className="text-xs text-coffee-400">
@@ -116,7 +116,7 @@ export default function ProductModal({
                     className={`px-4 py-2 rounded-lg border text-sm font-medium ${
                       isSelected
                         ? "border-accent bg-accent/10 text-accent-dark"
-                        : "border-coffee-200 text-coffee-700"
+                        : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
                     }`}
                   >
                     {opt.name}
@@ -131,7 +131,7 @@ export default function ProductModal({
         ))}
 
         <div>
-          <div className="text-sm font-semibold text-coffee-800 mb-2">
+          <div className="text-sm font-semibold text-coffee-800 dark:text-cream-100 mb-2">
             Notes (optional)
           </div>
           <textarea
@@ -139,23 +139,23 @@ export default function ProductModal({
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="e.g. less ice, no straw"
-            className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
           />
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-coffee-800">Quantity</div>
+          <div className="text-sm font-semibold text-coffee-800 dark:text-cream-100">Quantity</div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg"
+              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg dark:bg-coffee-800 dark:text-cream-100"
             >
               −
             </button>
-            <span className="w-6 text-center font-semibold">{qty}</span>
+            <span className="w-6 text-center font-semibold dark:text-cream-50">{qty}</span>
             <button
               onClick={() => setQty((q) => q + 1)}
-              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg"
+              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg dark:bg-coffee-800 dark:text-cream-100"
             >
               +
             </button>

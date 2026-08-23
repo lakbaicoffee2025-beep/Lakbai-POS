@@ -35,7 +35,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "bg-white rounded-xl border border-coffee-100 shadow-sm",
+        "bg-white rounded-xl border border-coffee-100 shadow-sm dark:bg-coffee-900 dark:border-coffee-800",
         className
       )}
     >
@@ -62,10 +62,10 @@ export function Button({
         size === "lg" && "px-5 py-3 text-base",
         variant === "primary" && "bg-accent hover:bg-accent-dark text-white",
         variant === "secondary" &&
-          "bg-coffee-100 hover:bg-coffee-200 text-coffee-900",
+          "bg-coffee-100 hover:bg-coffee-200 text-coffee-900 dark:bg-coffee-800 dark:hover:bg-coffee-700 dark:text-cream-50",
         variant === "danger" && "bg-red-600 hover:bg-red-700 text-white",
         variant === "ghost" &&
-          "bg-transparent hover:bg-coffee-100 text-coffee-700",
+          "bg-transparent hover:bg-coffee-100 text-coffee-700 dark:hover:bg-coffee-800 dark:text-coffee-200",
         className
       )}
       {...props}
@@ -78,7 +78,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30",
+        "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50 dark:placeholder-coffee-400",
         props.className
       )}
     />
@@ -94,7 +94,7 @@ export function Select({
     <select
       {...props}
       className={cn(
-        "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30",
+        "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50",
         className
       )}
     >
@@ -124,15 +124,15 @@ export function Modal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className={cn(
-          "relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh] safe-bottom",
+          "relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col max-h-[92vh] safe-bottom dark:bg-coffee-900",
           wide ? "sm:max-w-2xl" : "sm:max-w-md"
         )}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-coffee-100 shrink-0">
-          <h2 className="font-bold text-coffee-900">{title}</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-coffee-100 shrink-0 dark:border-coffee-800">
+          <h2 className="font-bold text-coffee-900 dark:text-cream-50">{title}</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100 dark:text-coffee-300 dark:hover:bg-coffee-800"
             aria-label="Close"
           >
             ✕
@@ -140,7 +140,7 @@ export function Modal({
         </div>
         <div className="px-5 py-4 overflow-y-auto flex-1">{children}</div>
         {footer && (
-          <div className="px-5 py-4 border-t border-coffee-100 shrink-0 flex gap-2 justify-end">
+          <div className="px-5 py-4 border-t border-coffee-100 shrink-0 flex gap-2 justify-end dark:border-coffee-800">
             {footer}
           </div>
         )}
@@ -160,10 +160,10 @@ export function Badge({
     <span
       className={cn(
         "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-        tone === "default" && "bg-coffee-100 text-coffee-700",
-        tone === "success" && "bg-emerald-100 text-emerald-700",
-        tone === "warning" && "bg-amber-100 text-amber-700",
-        tone === "danger" && "bg-red-100 text-red-700"
+        tone === "default" && "bg-coffee-100 text-coffee-700 dark:bg-coffee-800 dark:text-coffee-200",
+        tone === "success" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+        tone === "warning" && "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+        tone === "danger" && "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
       )}
     >
       {children}

@@ -39,9 +39,9 @@ export default function CartPanel({
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
-      <div className="px-4 py-3 border-b border-coffee-100 flex items-center justify-between shrink-0">
-        <h2 className="font-bold text-coffee-900">
+    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-coffee-900">
+      <div className="px-4 py-3 border-b border-coffee-100 flex items-center justify-between shrink-0 dark:border-coffee-800">
+        <h2 className="font-bold text-coffee-900 dark:text-cream-50">
           Current Order{" "}
           <span className="text-coffee-400 font-normal">({lines.length})</span>
         </h2>
@@ -62,10 +62,10 @@ export default function CartPanel({
           </div>
         )}
         {lines.map((line) => (
-          <div key={line.id} className="border-b border-coffee-50 pb-3">
+          <div key={line.id} className="border-b border-coffee-50 dark:border-coffee-800 pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-coffee-900 truncate">
+                <div className="text-sm font-semibold text-coffee-900 truncate dark:text-cream-50">
                   {line.productName}
                   {line.variantName ? ` (${line.variantName})` : ""}
                 </div>
@@ -92,16 +92,16 @@ export default function CartPanel({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => updateQty(line.id, Math.max(1, line.qty - 1))}
-                  className="w-7 h-7 rounded-full bg-coffee-100 text-coffee-800 font-bold"
+                  className="w-7 h-7 rounded-full bg-coffee-100 text-coffee-800 font-bold dark:bg-coffee-800 dark:text-cream-100"
                 >
                   −
                 </button>
-                <span className="w-5 text-center text-sm font-semibold">
+                <span className="w-5 text-center text-sm font-semibold dark:text-cream-50">
                   {line.qty}
                 </span>
                 <button
                   onClick={() => updateQty(line.id, line.qty + 1)}
-                  className="w-7 h-7 rounded-full bg-coffee-100 text-coffee-800 font-bold"
+                  className="w-7 h-7 rounded-full bg-coffee-100 text-coffee-800 font-bold dark:bg-coffee-800 dark:text-cream-100"
                 >
                   +
                 </button>
@@ -116,7 +116,7 @@ export default function CartPanel({
                       d ? { id: d.id, name: d.name, type: d.type, value: d.value } : undefined
                     );
                   }}
-                  className="text-xs border border-coffee-200 rounded-md px-1.5 py-1 text-coffee-600 min-w-0 flex-1 max-w-[120px]"
+                  className="text-xs border border-coffee-200 rounded-md px-1.5 py-1 text-coffee-600 min-w-0 flex-1 max-w-[120px] dark:border-coffee-700 dark:bg-coffee-800 dark:text-coffee-200"
                 >
                   <option value="">No discount</option>
                   {(discounts ?? []).map((d) => (
@@ -126,7 +126,7 @@ export default function CartPanel({
                   ))}
                 </select>
               )}
-              <div className="text-sm font-bold text-coffee-900 shrink-0">
+              <div className="text-sm font-bold text-coffee-900 shrink-0 dark:text-cream-50">
                 {formatMoney(line.lineTotal, symbol)}
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function CartPanel({
         ))}
       </div>
 
-      <div className="border-t border-coffee-100 p-4 space-y-2 shrink-0">
+      <div className="border-t border-coffee-100 dark:border-coffee-800 p-4 space-y-2 shrink-0">
         {discountsEnabled && (
           <div>
             <label className="text-xs font-medium text-coffee-500 mb-1 block">
@@ -160,23 +160,23 @@ export default function CartPanel({
         )}
 
         <div className="text-sm space-y-1 pt-1">
-          <div className="flex justify-between text-coffee-600">
+          <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
             <span>Subtotal</span>
             <span>{formatMoney(subtotal, symbol)}</span>
           </div>
           {discountTotal > 0 && (
-            <div className="flex justify-between text-emerald-600">
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
               <span>Discount</span>
               <span>-{formatMoney(discountTotal, symbol)}</span>
             </div>
           )}
           {taxRate > 0 && (
-            <div className="flex justify-between text-coffee-600">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Tax ({taxRate}%{taxInclusive ? ", incl." : ""})</span>
               <span>{formatMoney(taxTotal, symbol)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold text-coffee-900 pt-1">
+          <div className="flex justify-between text-lg font-bold text-coffee-900 dark:text-cream-50 pt-1">
             <span>Total</span>
             <span>{formatMoney(total, symbol)}</span>
           </div>

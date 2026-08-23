@@ -51,16 +51,16 @@ export default function OpenTicketsPanel({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="space-y-2">
           {tickets.map((t) => (
-            <div key={t.id} className="rounded-lg border border-coffee-100 p-3">
+            <div key={t.id} className="rounded-lg border border-coffee-100 p-3 dark:border-coffee-800">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-coffee-900">{t.name}</div>
+                  <div className="text-sm font-semibold text-coffee-900 dark:text-cream-50">{t.name}</div>
                   <div className="text-xs text-coffee-400">
                     {t.lines.length} item{t.lines.length !== 1 ? "s" : ""} ·{" "}
                     {formatMoney(ticketTotal(t), symbol)} · held{" "}
                     {formatDistanceToNow(t.createdAt, { addSuffix: true })} by {t.createdByName}
                   </div>
-                  {t.notes && <div className="text-sm text-coffee-600 mt-1">{t.notes}</div>}
+                  {t.notes && <div className="text-sm text-coffee-600 dark:text-coffee-300 mt-1">{t.notes}</div>}
                 </div>
                 <button
                   onClick={() => handleDelete(t.id)}

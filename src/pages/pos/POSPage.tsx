@@ -16,6 +16,16 @@ import HoldTicketModal from "./HoldTicketModal";
 import OpenTicketsPanel from "./OpenTicketsPanel";
 import type { Order } from "../../types";
 
+const DARK_MODE_KEY = "lakbai-pos-dark-mode";
+
+function loadDarkMode(): boolean {
+  try {
+    return localStorage.getItem(DARK_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function POSPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
   const activeShift = useShiftStore((s) => s.activeShift);
@@ -30,6 +40,19 @@ export default function POSPage() {
   const [holdOpen, setHoldOpen] = useState(false);
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [darkMode, setDarkMode] = useState(loadDarkMode);
+
+  function toggleDarkMode() {
+    setDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(DARK_MODE_KEY, next ? "1" : "0");
+      } catch {
+        // best-effort only — a private window or blocked storage just won't remember it
+      }
+      return next;
+    });
+  }
 
   const ticketCount = useLiveQuery(() => db.openTickets.count(), []) ?? 0;
 
@@ -64,7 +87,13 @@ export default function POSPage() {
     });
   }, [activeShift, lines, orderDiscount]);
 
-  if (!activeShift) return <OpenShiftGate />;
+  if (!activeShift) {
+    return (
+      <div className={`h-full bg-cream-50 dark:bg-coffee-950 ${darkMode ? "dark" : ""}`}>
+        <OpenShiftGate darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
+      </div>
+    );
+  }
 
   const totals = computeOrderTotals(
     lines,
@@ -74,9 +103,13 @@ export default function POSPage() {
   );
 
   return (
-    <div className="h-full flex flex-col landscape:flex-row sm:flex-row">
+    <div
+      className={`h-full flex flex-col landscape:flex-row sm:flex-row bg-cream-50 dark:bg-coffee-950 ${darkMode ? "dark" : ""}`}
+    >
       <div className="flex-1 min-h-0 min-w-0">
         <ProductGrid
+          darkMode={darkMode}
+          onToggleDarkMode={toggleDarkMode}
           headerAction={
             <button
               onClick={() => setTicketsOpen(true)}
@@ -97,7 +130,7 @@ export default function POSPage() {
           sideways included) as well as at the sm breakpoint for portrait
           tablets/desktop, so a phone always shows the cart alongside the
           menu once it's rotated, regardless of its raw pixel width. */}
-      <div className="hidden landscape:flex sm:flex landscape:w-72 sm:w-80 lg:w-96 border-l border-coffee-100 shrink-0">
+      <div className="hidden landscape:flex sm:flex landscape:w-72 sm:w-80 lg:w-96 border-l border-coffee-100 dark:border-coffee-800 shrink-0">
         <CartPanel onCheckout={() => setCheckoutOpen(true)} onHoldTicket={() => setHoldOpen(true)} />
       </div>
 
@@ -117,12 +150,12 @@ export default function POSPage() {
       )}
 
       {mobileCartOpen && (
-        <div className="landscape:hidden sm:hidden fixed inset-0 z-40 bg-white flex flex-col safe-top safe-bottom">
-          <div className="flex items-center justify-between px-4 h-12 border-b border-coffee-100 shrink-0">
-            <span className="font-bold text-coffee-900">Cart</span>
+        <div className="landscape:hidden sm:hidden fixed inset-0 z-40 bg-white dark:bg-coffee-950 flex flex-col safe-top safe-bottom">
+          <div className="flex items-center justify-between px-4 h-12 border-b border-coffee-100 dark:border-coffee-800 shrink-0">
+            <span className="font-bold text-coffee-900 dark:text-cream-50">Cart</span>
             <button
               onClick={() => setMobileCartOpen(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100 dark:text-coffee-300 dark:hover:bg-coffee-800"
             >
               ✕
             </button>
