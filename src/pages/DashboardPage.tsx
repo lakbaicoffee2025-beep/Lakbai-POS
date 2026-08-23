@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format, subDays } from "date-fns";
 import {
@@ -201,6 +201,21 @@ export default function DashboardPage() {
   const [selectedShiftId, setSelectedShiftId] = useState("");
   const [shiftCategoryFilter, setShiftCategoryFilter] = useState("all");
 
+  // Default to whichever shift is currently open (most recent one, if
+  // several cashiers have one going) so the breakdown always has something
+  // live to show without the admin having to pick. Only ever auto-picks
+  // once, so it doesn't yank the admin back after they've manually chosen a
+  // different (e.g. past) shift to review.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current || !allShifts) return;
+    const current = allShifts.find((s) => s.status === "open") ?? allShifts[0];
+    if (current) {
+      setSelectedShiftId(current.id);
+      autoSelectedRef.current = true;
+    }
+  }, [allShifts]);
+
   const selectedShift = (allShifts ?? []).find((s) => s.id === selectedShiftId);
 
   const shiftOrders = useLiveQuery(
@@ -308,103 +323,6 @@ export default function DashboardPage() {
             <Stat label="Cash" value={formatMoney(cash, symbol)} />
             <Stat label="GCash" value={formatMoney(gcash, symbol)} />
           </div>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-bold text-coffee-800 mb-2">Top 5 Products</h3>
-          {top5.length === 0 ? (
-            <EmptyState text="No sales in this range." />
-          ) : (
-            <Card className="divide-y divide-coffee-100">
-              {top5.map((p, i) => (
-                <div key={p.productId} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-coffee-400 font-semibold w-4 shrink-0">{i + 1}</span>
-                    <span className="text-coffee-700 truncate">{p.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-coffee-500">{p.qty}x</span>
-                    <span className="font-semibold text-coffee-900">
-                      {formatMoney(p.revenue, symbol)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </Card>
-          )}
-        </div>
-
-        <div>
-          <h3 className="text-sm font-bold text-coffee-800 mb-2">Product Sales by Range</h3>
-          <Card className="p-4 space-y-3">
-            <div>
-              <label className="text-xs text-coffee-400 mb-1 block">Product</label>
-              <Select value={productId} onChange={(e) => setProductId(e.target.value)}>
-                <option value="">Select a product…</option>
-                {(products ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs text-coffee-400 mb-1 block">Range</label>
-              <div className="flex gap-2">
-                {(["7d", "30d", "custom"] as RangePreset[]).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setPreset(r)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
-                      preset === r
-                        ? "bg-coffee-900 text-cream-50 border-coffee-900"
-                        : "border-coffee-200 text-coffee-700"
-                    }`}
-                  >
-                    {r === "7d" ? "1 Week" : r === "30d" ? "1 Month" : "Custom"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {preset === "custom" && (
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-xs text-coffee-400 mb-1 block">From</label>
-                  <input
-                    type="date"
-                    value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-coffee-400 mb-1 block">To</label>
-                  <input
-                    type="date"
-                    value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                  />
-                </div>
-              </div>
-            )}
-
-            {productId && rangeAgg && (
-              <div className="pt-2 border-t border-coffee-100 flex items-center justify-between">
-                <div className="text-sm text-coffee-600 truncate">
-                  {selectedProduct?.name ?? rangeAgg.name}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-lg font-bold text-coffee-900">{rangeAgg.qty} sold</div>
-                  <div className="text-xs text-coffee-400">
-                    {formatMoney(rangeAgg.revenue, symbol)} revenue
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
         </div>
 
         <div>
@@ -534,6 +452,103 @@ export default function DashboardPage() {
                   )}
                 </div>
               </>
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold text-coffee-800 mb-2">Top 5 Products</h3>
+          {top5.length === 0 ? (
+            <EmptyState text="No sales in this range." />
+          ) : (
+            <Card className="divide-y divide-coffee-100">
+              {top5.map((p, i) => (
+                <div key={p.productId} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-coffee-400 font-semibold w-4 shrink-0">{i + 1}</span>
+                    <span className="text-coffee-700 truncate">{p.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-coffee-500">{p.qty}x</span>
+                    <span className="font-semibold text-coffee-900">
+                      {formatMoney(p.revenue, symbol)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold text-coffee-800 mb-2">Product Sales by Range</h3>
+          <Card className="p-4 space-y-3">
+            <div>
+              <label className="text-xs text-coffee-400 mb-1 block">Product</label>
+              <Select value={productId} onChange={(e) => setProductId(e.target.value)}>
+                <option value="">Select a product…</option>
+                {(products ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs text-coffee-400 mb-1 block">Range</label>
+              <div className="flex gap-2">
+                {(["7d", "30d", "custom"] as RangePreset[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setPreset(r)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
+                      preset === r
+                        ? "bg-coffee-900 text-cream-50 border-coffee-900"
+                        : "border-coffee-200 text-coffee-700"
+                    }`}
+                  >
+                    {r === "7d" ? "1 Week" : r === "30d" ? "1 Month" : "Custom"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {preset === "custom" && (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-coffee-400 mb-1 block">From</label>
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-coffee-400 mb-1 block">To</label>
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full rounded-lg border border-coffee-200 px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                  />
+                </div>
+              </div>
+            )}
+
+            {productId && rangeAgg && (
+              <div className="pt-2 border-t border-coffee-100 flex items-center justify-between">
+                <div className="text-sm text-coffee-600 truncate">
+                  {selectedProduct?.name ?? rangeAgg.name}
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-lg font-bold text-coffee-900">{rangeAgg.qty} sold</div>
+                  <div className="text-xs text-coffee-400">
+                    {formatMoney(rangeAgg.revenue, symbol)} revenue
+                  </div>
+                </div>
+              </div>
             )}
           </Card>
         </div>
