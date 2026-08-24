@@ -96,7 +96,9 @@ export async function getYesterdayCarryover(
   const d = new Date(date + "T12:00:00");
   d.setDate(d.getDate() - 1);
   const yesterday = d.toISOString().split("T")[0];
-  const reports = await db.expenseReports.where("date").equals(yesterday).toArray();
+  const reports = (await db.expenseReports.where("date").equals(yesterday).toArray()).filter(
+    (r) => r.cashReturnStatus !== "returned"
+  );
   const amount = reports.reduce((s, r) => s + Math.max(0, r.remainingCash), 0);
   return { amount, reports };
 }
