@@ -54,7 +54,11 @@ export default function POSPage() {
     });
   }
 
-  const ticketCount = useLiveQuery(() => db.openTickets.count(), []) ?? 0;
+  const ticketCount =
+    useLiveQuery(
+      () => (activeShift ? db.openTickets.where("shiftId").equals(activeShift.id).count() : 0),
+      [activeShift?.id]
+    ) ?? 0;
 
   useEffect(() => {
     loadActiveShift(currentUser.id);
@@ -197,6 +201,7 @@ export default function POSPage() {
 
       {ticketsOpen && (
         <OpenTicketsPanel
+          shiftId={activeShift.id}
           onClose={() => {
             setTicketsOpen(false);
             setMobileCartOpen(false);

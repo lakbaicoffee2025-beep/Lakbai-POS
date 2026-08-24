@@ -8,10 +8,19 @@ import { formatMoney } from "../../lib/format";
 import { Modal, Button, EmptyState } from "../../components/ui";
 import type { OpenTicket } from "../../types";
 
-export default function OpenTicketsPanel({ onClose }: { onClose: () => void }) {
+export default function OpenTicketsPanel({
+  shiftId,
+  onClose,
+}: {
+  shiftId: string;
+  onClose: () => void;
+}) {
+  // Scoped to the shift currently open on this register — a ticket held
+  // during a since-closed shift shouldn't resurface and get charged
+  // against a shift it has nothing to do with.
   const tickets = useLiveQuery(
-    () => db.openTickets.orderBy("createdAt").reverse().toArray(),
-    []
+    () => db.openTickets.where("shiftId").equals(shiftId).reverse().sortBy("createdAt"),
+    [shiftId]
   );
   const cartLines = useCartStore((s) => s.lines);
   const loadCart = useCartStore((s) => s.loadCart);

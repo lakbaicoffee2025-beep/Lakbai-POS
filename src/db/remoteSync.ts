@@ -28,6 +28,14 @@ const LOCAL_ONLY_TABLES = new Set([
   "inventoryCountDrafts",
   "spoilageDrafts",
   "purchaseOrderDrafts",
+  // Held tickets are mutated frequently (hold/resume/delete) from whichever
+  // register is working them. Syncing a frequently-mutated table via
+  // full-snapshot-replace is exactly the case that loses data: any device
+  // that hasn't polled in the last few seconds pushes its own stale view
+  // and silently wipes out a ticket another device just added. Scoping
+  // this to one device (like the cart draft already is) removes that race
+  // entirely — a ticket is only ever resumed on the register that held it.
+  "openTickets",
 ]);
 
 // A write is only safe from an incoming pull once it has actually reached
