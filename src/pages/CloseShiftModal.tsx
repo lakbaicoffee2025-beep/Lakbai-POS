@@ -49,21 +49,21 @@ export default function CloseShiftModal({
     <Modal open onClose={onClose} title="Close Shift · Cash Count">
       <div className="space-y-4">
         {blind ? (
-          <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3">
+          <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3 dark:bg-coffee-800 dark:text-coffee-300">
             Count your cash and GCash drawer and enter the totals below. Your manager will
             review against sales after closing.
           </div>
         ) : (
-          <div className="rounded-lg bg-coffee-50 p-3 text-sm space-y-1">
-            <div className="flex justify-between text-coffee-600">
+          <div className="rounded-lg bg-coffee-50 p-3 text-sm space-y-1 dark:bg-coffee-800">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Orders</span>
               <span>{summary.orderCount}</span>
             </div>
-            <div className="flex justify-between text-coffee-600">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Net Sales</span>
               <span>{formatMoney(summary.netSales, symbol)}</span>
             </div>
-            <div className="flex justify-between text-coffee-600">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Starting Cash</span>
               <span>{formatMoney(shift.startingCash, symbol)}</span>
             </div>
@@ -87,7 +87,7 @@ export default function CloseShiftModal({
             placeholder={blind ? "0.00" : undefined}
             value={countedCash}
             onChange={(e) => setCountedCash(e.target.value)}
-            className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
           />
           {!blind && (
             <div
@@ -121,7 +121,7 @@ export default function CloseShiftModal({
             placeholder={blind ? "0.00" : undefined}
             value={countedGcash}
             onChange={(e) => setCountedGcash(e.target.value)}
-            className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
           />
           {!blind && (
             <div
@@ -146,7 +146,7 @@ export default function CloseShiftModal({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
           />
         </div>
 

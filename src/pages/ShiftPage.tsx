@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { db } from "../db/db";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
+import { useDarkModeStore } from "../store/darkModeStore";
 import { computeShiftSummary } from "../lib/shiftMath";
 import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
@@ -20,6 +21,8 @@ export default function ShiftPage() {
   const settings = useSettingsStore((s) => s.settings);
   const symbol = settings?.currencySymbol ?? "₱";
   const blind = currentUser.role === "cashier" && !!settings?.hideSalesFromCashiers;
+  const darkMode = useDarkModeStore((s) => s.darkMode);
+  const toggleDarkMode = useDarkModeStore((s) => s.toggleDarkMode);
 
   const [closeOpen, setCloseOpen] = useState(false);
   const [paidOutOpen, setPaidOutOpen] = useState(false);
@@ -60,15 +63,27 @@ export default function ShiftPage() {
   const paidOutTotal = paidOuts.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div>
-      <PageHeader title="Shift" subtitle="Cash count & shift reports" />
+    <div className={`bg-cream-50 dark:bg-coffee-950 min-h-full ${darkMode ? "dark" : ""}`}>
+      <PageHeader
+        title="Shift"
+        subtitle="Cash count & shift reports"
+        action={
+          <button
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+          >
+            {darkMode ? "☀️" : "🌙"}
+          </button>
+        }
+      />
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto">
         {activeShift ? (
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="font-bold text-coffee-900">Shift In Progress</div>
+                <div className="font-bold text-coffee-900 dark:text-cream-50">Shift In Progress</div>
                 <div className="text-xs text-coffee-400">
                   Started {format(activeShift.startedAt, "h:mm a, MMM d")}
                 </div>
@@ -77,7 +92,7 @@ export default function ShiftPage() {
             </div>
 
             {blind ? (
-              <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3 mb-4">
+              <div className="text-sm text-coffee-500 bg-coffee-50 rounded-lg p-3 mb-4 dark:bg-coffee-800 dark:text-coffee-300">
                 Sales figures are hidden during your shift. Count your cash and GCash drawer
                 when you close out.
               </div>
@@ -115,10 +130,10 @@ export default function ShiftPage() {
                   {paidOuts.map((e) => (
                     <div
                       key={e.id}
-                      className="flex items-center justify-between text-xs bg-coffee-50 rounded-lg px-3 py-2"
+                      className="flex items-center justify-between text-xs bg-coffee-50 rounded-lg px-3 py-2 dark:bg-coffee-800"
                     >
-                      <span className="text-coffee-700 truncate">{e.description}</span>
-                      <span className="font-semibold text-coffee-900 shrink-0 ml-2">
+                      <span className="text-coffee-700 dark:text-coffee-200 truncate">{e.description}</span>
+                      <span className="font-semibold text-coffee-900 dark:text-cream-50 shrink-0 ml-2">
                         {formatMoney(e.amount, symbol)}
                       </span>
                     </div>
@@ -143,7 +158,7 @@ export default function ShiftPage() {
         ) : (
           <Card className="p-6 text-center">
             <div className="text-3xl mb-2">🕒</div>
-            <div className="font-semibold text-coffee-900">No Active Shift</div>
+            <div className="font-semibold text-coffee-900 dark:text-cream-50">No Active Shift</div>
             <div className="text-sm text-coffee-400 mt-1">
               Open a shift from the POS screen to start selling.
             </div>
@@ -151,7 +166,7 @@ export default function ShiftPage() {
         )}
 
         <div>
-          <h3 className="text-sm font-bold text-coffee-800 mb-2 px-1">
+          <h3 className="text-sm font-bold text-coffee-800 dark:text-cream-100 mb-2 px-1">
             Past Shifts
           </h3>
           {!pastShifts || pastShifts.length === 0 ? (
@@ -162,10 +177,10 @@ export default function ShiftPage() {
                 <button
                   key={s.id}
                   onClick={() => setViewShift(s)}
-                  className="w-full text-left bg-white rounded-xl border border-coffee-100 p-3 flex items-center justify-between hover:border-coffee-300"
+                  className="w-full text-left bg-white rounded-xl border border-coffee-100 p-3 flex items-center justify-between hover:border-coffee-300 dark:bg-coffee-900 dark:border-coffee-800 dark:hover:border-coffee-600"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-coffee-900">
+                    <div className="text-sm font-semibold text-coffee-900 dark:text-cream-50">
                       {format(s.startedAt, "MMM d, yyyy")}
                     </div>
                     <div className="text-xs text-coffee-400">
@@ -213,12 +228,12 @@ export default function ShiftPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setViewShift(null)}
           />
-          <div className="relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl max-w-lg max-h-[90vh] overflow-y-auto p-5 safe-bottom">
+          <div className="relative bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl max-w-lg max-h-[90vh] overflow-y-auto p-5 safe-bottom dark:bg-coffee-900">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-coffee-900">Shift Report</h2>
+              <h2 className="font-bold text-coffee-900 dark:text-cream-50">Shift Report</h2>
               <button
                 onClick={() => setViewShift(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100 dark:text-coffee-300 dark:hover:bg-coffee-800"
               >
                 ✕
               </button>
@@ -233,9 +248,9 @@ export default function ShiftPage() {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-coffee-50 p-3">
+    <div className="rounded-lg bg-coffee-50 p-3 dark:bg-coffee-800">
       <div className="text-xs text-coffee-400">{label}</div>
-      <div className="text-sm font-bold text-coffee-900">{value}</div>
+      <div className="text-sm font-bold text-coffee-900 dark:text-cream-50">{value}</div>
     </div>
   );
 }

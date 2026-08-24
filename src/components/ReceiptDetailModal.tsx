@@ -114,7 +114,7 @@ export default function ReceiptDetailModal({
             {format(order.createdAt, "MMM d, yyyy h:mm a")} · {order.cashierName}
           </div>
           {order.customerName && (
-            <div className="text-sm text-coffee-600 mt-1">For: {order.customerName}</div>
+            <div className="text-sm text-coffee-600 dark:text-coffee-300 mt-1">For: {order.customerName}</div>
           )}
           {order.status === "voided" && (
             <div className="mt-2">
@@ -128,7 +128,7 @@ export default function ReceiptDetailModal({
           )}
         </div>
 
-        <div className="border-t border-b border-dashed border-coffee-200 py-3 space-y-3 text-sm">
+        <div className="border-t border-b border-dashed border-coffee-200 dark:border-coffee-700 py-3 space-y-3 text-sm">
           {order.items.map((item) => {
             const remaining = refundableQty(order, item.id);
             const refundedQty = item.qty - remaining;
@@ -136,7 +136,7 @@ export default function ReceiptDetailModal({
               <div key={item.id}>
                 <div className="flex justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-medium text-coffee-900">
+                    <div className="font-medium text-coffee-900 dark:text-cream-50">
                       {item.qty}x {item.productName}
                       {item.variantName ? ` (${item.variantName})` : ""}
                     </div>
@@ -165,24 +165,24 @@ export default function ReceiptDetailModal({
                 </div>
 
                 {refundingLineId === item.id && (
-                  <div className="mt-2 bg-coffee-50 rounded-lg p-3 space-y-2">
+                  <div className="mt-2 bg-coffee-50 dark:bg-coffee-800 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-coffee-500">
+                      <label className="text-xs font-medium text-coffee-500 dark:text-coffee-300">
                         Quantity to refund
                       </label>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setRefundQty((q) => Math.max(1, q - 1))}
-                          className="w-6 h-6 rounded-full bg-white border border-coffee-200 text-coffee-800 font-bold"
+                          className="w-6 h-6 rounded-full bg-white border border-coffee-200 text-coffee-800 font-bold dark:bg-coffee-900 dark:border-coffee-700 dark:text-cream-50"
                         >
                           −
                         </button>
-                        <span className="w-5 text-center text-sm font-semibold">
+                        <span className="w-5 text-center text-sm font-semibold dark:text-cream-50">
                           {refundQty}
                         </span>
                         <button
                           onClick={() => setRefundQty((q) => Math.min(remaining, q + 1))}
-                          className="w-6 h-6 rounded-full bg-white border border-coffee-200 text-coffee-800 font-bold"
+                          className="w-6 h-6 rounded-full bg-white border border-coffee-200 text-coffee-800 font-bold dark:bg-coffee-900 dark:border-coffee-700 dark:text-cream-50"
                         >
                           +
                         </button>
@@ -193,10 +193,10 @@ export default function ReceiptDetailModal({
                       onChange={(e) => setRefundReason(e.target.value)}
                       rows={2}
                       placeholder="Reason for refund *"
-                      className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                      className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-900 dark:text-cream-50"
                     />
                     {refundError && (
-                      <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+                      <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
                         {refundError}
                       </div>
                     )}
@@ -231,7 +231,7 @@ export default function ReceiptDetailModal({
         </div>
 
         <div className="text-sm space-y-1">
-          <div className="flex justify-between text-coffee-600">
+          <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
             <span>Subtotal</span>
             <span>{formatMoney(order.subtotal, symbol)}</span>
           </div>
@@ -242,12 +242,12 @@ export default function ReceiptDetailModal({
             </div>
           )}
           {order.taxTotal > 0 && (
-            <div className="flex justify-between text-coffee-600">
+            <div className="flex justify-between text-coffee-600 dark:text-coffee-300">
               <span>Tax</span>
               <span>{formatMoney(order.taxTotal, symbol)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold text-coffee-900">
+          <div className="flex justify-between text-lg font-bold text-coffee-900 dark:text-cream-50">
             <span>Total</span>
             <span>{formatMoney(order.total, symbol)}</span>
           </div>
@@ -257,31 +257,31 @@ export default function ReceiptDetailModal({
                 <span>Refunded</span>
                 <span>-{formatMoney(refundedTotal, symbol)}</span>
               </div>
-              <div className="flex justify-between font-semibold text-coffee-800">
+              <div className="flex justify-between font-semibold text-coffee-800 dark:text-coffee-100">
                 <span>Net</span>
                 <span>{formatMoney(order.total - refundedTotal, symbol)}</span>
               </div>
             </>
           )}
-          <div className="text-coffee-500 capitalize pt-1">Paid via {order.payment.method}</div>
+          <div className="text-coffee-500 dark:text-coffee-400 capitalize pt-1">Paid via {order.payment.method}</div>
         </div>
 
         {(order.refunds ?? []).length > 0 && (
           <div className="pt-1 space-y-1">
-            <div className="text-xs font-semibold text-coffee-500">Refund History</div>
+            <div className="text-xs font-semibold text-coffee-500 dark:text-coffee-300">Refund History</div>
             {order.refunds!.map((r) => (
               <div
                 key={r.id}
-                className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+                className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 dark:bg-amber-900/20 dark:border-amber-800"
               >
-                <div className="flex justify-between font-medium text-amber-800">
+                <div className="flex justify-between font-medium text-amber-800 dark:text-amber-300">
                   <span>
                     {r.qty}x {r.productName}
                   </span>
                   <span>-{formatMoney(r.amount, symbol)}</span>
                 </div>
-                <div className="text-amber-700 mt-0.5">{r.reason}</div>
-                <div className="text-amber-600 mt-0.5">
+                <div className="text-amber-700 dark:text-amber-400 mt-0.5">{r.reason}</div>
+                <div className="text-amber-600 dark:text-amber-400 mt-0.5">
                   {r.refundedByName} · {format(r.refundedAt, "MMM d, h:mm a")}
                 </div>
               </div>
@@ -290,7 +290,7 @@ export default function ReceiptDetailModal({
         )}
 
         {order.status === "voided" && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
             <div className="font-semibold">
               Voided by {order.voidedByName} · {order.voidedAt ? format(order.voidedAt, "MMM d, h:mm a") : ""}
             </div>
@@ -299,14 +299,14 @@ export default function ReceiptDetailModal({
         )}
 
         {isAdmin && order.status === "completed" && (
-          <div className="pt-2 border-t border-coffee-100">
+          <div className="pt-2 border-t border-coffee-100 dark:border-coffee-800">
             {!voiding ? (
               <Button variant="danger" className="w-full" onClick={() => setVoiding(true)}>
                 Void This Transaction
               </Button>
             ) : (
               <div className="space-y-2">
-                <label className="text-xs font-medium text-coffee-500 block">
+                <label className="text-xs font-medium text-coffee-500 dark:text-coffee-300 block">
                   Reason for voiding *
                 </label>
                 <textarea
@@ -314,10 +314,10 @@ export default function ReceiptDetailModal({
                   onChange={(e) => setReason(e.target.value)}
                   rows={2}
                   placeholder="e.g. Wrong order entered, customer cancelled"
-                  className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                  className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
                 />
                 {error && (
-                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
                     {error}
                   </div>
                 )}
@@ -351,7 +351,7 @@ export default function ReceiptDetailModal({
         )}
 
         {isAdmin && (
-          <div className="pt-2 border-t border-coffee-100">
+          <div className="pt-2 border-t border-coffee-100 dark:border-coffee-800">
             {!deleteConfirming ? (
               <Button
                 variant="danger"
@@ -363,7 +363,7 @@ export default function ReceiptDetailModal({
             ) : (
               <div className="space-y-2">
                 {deleteError && (
-                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
                     {deleteError}
                   </div>
                 )}

@@ -5,6 +5,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useShiftStore } from "../../store/shiftStore";
 import { useCartStore } from "../../store/cartStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useDarkModeStore } from "../../store/darkModeStore";
 import { formatMoney } from "../../lib/format";
 import { computeOrderTotals } from "../../lib/cartMath";
 import ProductGrid from "./ProductGrid";
@@ -16,16 +17,6 @@ import HoldTicketModal from "./HoldTicketModal";
 import OpenTicketsPanel from "./OpenTicketsPanel";
 import type { Order } from "../../types";
 
-const DARK_MODE_KEY = "lakbai-pos-dark-mode";
-
-function loadDarkMode(): boolean {
-  try {
-    return localStorage.getItem(DARK_MODE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export default function POSPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
   const activeShift = useShiftStore((s) => s.activeShift);
@@ -34,25 +25,14 @@ export default function POSPage() {
   const orderDiscount = useCartStore((s) => s.orderDiscount);
   const loadCart = useCartStore((s) => s.loadCart);
   const settings = useSettingsStore((s) => s.settings);
+  const darkMode = useDarkModeStore((s) => s.darkMode);
+  const toggleDarkMode = useDarkModeStore((s) => s.toggleDarkMode);
 
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [holdOpen, setHoldOpen] = useState(false);
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
-  const [darkMode, setDarkMode] = useState(loadDarkMode);
-
-  function toggleDarkMode() {
-    setDarkMode((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(DARK_MODE_KEY, next ? "1" : "0");
-      } catch {
-        // best-effort only — a private window or blocked storage just won't remember it
-      }
-      return next;
-    });
-  }
 
   const ticketCount =
     useLiveQuery(

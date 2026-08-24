@@ -5,6 +5,7 @@ import { db } from "../db/db";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { useDarkModeStore } from "../store/darkModeStore";
 import { formatMoney } from "../lib/format";
 import type { Order } from "../types";
 import { PageHeader, Card, Input, Badge, EmptyState } from "../components/ui";
@@ -15,6 +16,8 @@ export default function ReceiptsPage() {
   const activeShift = useShiftStore((s) => s.activeShift);
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
   const isAdmin = currentUser.role === "admin";
+  const darkMode = useDarkModeStore((s) => s.darkMode);
+  const toggleDarkMode = useDarkModeStore((s) => s.toggleDarkMode);
 
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -41,7 +44,7 @@ export default function ReceiptsPage() {
   });
 
   return (
-    <div>
+    <div className={`bg-cream-50 dark:bg-coffee-950 min-h-full ${darkMode ? "dark" : ""}`}>
       <PageHeader
         title="Receipts"
         subtitle={
@@ -50,6 +53,15 @@ export default function ReceiptsPage() {
             : activeShift
               ? "This shift's transactions"
               : "Open a shift to see its transactions"
+        }
+        action={
+          <button
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+          >
+            {darkMode ? "☀️" : "🌙"}
+          </button>
         }
       />
 
@@ -84,15 +96,15 @@ export default function ReceiptsPage() {
             }
           />
         ) : (
-          <Card className="divide-y divide-coffee-100">
+          <Card className="divide-y divide-coffee-100 dark:divide-coffee-800">
             {filtered.map((o) => (
               <button
                 key={o.id}
                 onClick={() => setViewOrder(o)}
-                className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-coffee-50"
+                className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-coffee-50 dark:hover:bg-coffee-800"
               >
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-coffee-900 flex items-center gap-2">
+                  <div className="text-sm font-semibold text-coffee-900 dark:text-cream-50 flex items-center gap-2">
                     Order #{o.orderNo}
                     {o.status === "voided" && <Badge tone="danger">Voided</Badge>}
                     {o.status === "refunded" && <Badge tone="warning">Refunded</Badge>}
@@ -106,7 +118,7 @@ export default function ReceiptsPage() {
                     {isAdmin ? ` · ${o.cashierName}` : ""}
                   </div>
                 </div>
-                <div className="text-sm font-bold text-coffee-900 shrink-0">
+                <div className="text-sm font-bold text-coffee-900 dark:text-cream-50 shrink-0">
                   {formatMoney(o.total, symbol)}
                 </div>
               </button>

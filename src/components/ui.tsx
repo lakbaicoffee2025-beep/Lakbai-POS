@@ -11,9 +11,9 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6 border-b border-coffee-100 bg-white">
+    <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6 border-b border-coffee-100 bg-white dark:border-coffee-800 dark:bg-coffee-900">
       <div className="min-w-0">
-        <h1 className="text-lg sm:text-xl font-bold text-coffee-900 truncate">
+        <h1 className="text-lg sm:text-xl font-bold text-coffee-900 truncate dark:text-cream-50">
           {title}
         </h1>
         {subtitle && (
