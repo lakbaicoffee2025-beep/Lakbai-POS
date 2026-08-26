@@ -61,15 +61,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside
         className={clsx(
-          "hidden md:flex md:flex-col relative border-r border-coffee-100 bg-white safe-left shrink-0 transition-[width] duration-200",
-          collapsed ? "md:w-16" : "md:w-60"
+          "hidden tablet:flex tablet:flex-col relative border-r border-coffee-100 bg-white safe-left shrink-0 transition-[width] duration-200",
+          collapsed ? "tablet:w-16" : "tablet:w-60"
         )}
       >
         <button
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand menu" : "Collapse menu"}
           title={collapsed ? "Expand menu" : "Collapse menu"}
-          className="hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full border border-coffee-200 bg-white shadow-sm items-center justify-center text-coffee-500 hover:bg-coffee-100 z-10"
+          className="hidden tablet:flex absolute -right-3 top-6 w-6 h-6 rounded-full border border-coffee-200 bg-white shadow-sm items-center justify-center text-coffee-500 hover:bg-coffee-100 z-10"
         >
           {collapsed ? "›" : "‹"}
         </button>
@@ -109,7 +109,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile drawer overlay */}
       {drawerOpen && (
-        <div className="md:hidden fixed inset-0 z-40 flex">
+        <div className="tablet:hidden fixed inset-0 z-40 flex">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setDrawerOpen(false)}
@@ -153,7 +153,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden flex items-center justify-between px-3 h-12 landscape:h-10 border-b border-coffee-100 bg-white safe-top safe-left safe-right shrink-0">
+        <header className="tablet:hidden flex items-center justify-between px-3 h-12 landscape:h-10 border-b border-coffee-100 bg-white safe-top safe-left safe-right shrink-0">
           <button
             onClick={() => setDrawerOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-coffee-700 hover:bg-coffee-100"

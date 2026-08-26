@@ -4,6 +4,13 @@
    class on the POS root, not tied to OS/browser color-scheme). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Gates the persistent nav sidebar to screens that are both wide AND tall
+   enough to be a real tablet/desktop — plain `md:` (width-only) also
+   matches a phone rotated to landscape (e.g. any iPhone: ~850-930px wide
+   but only ~390-430px tall), which would swap out the hamburger/drawer
+   nav for a sidebar with no way back to it on that cramped a screen. */
+@custom-variant tablet (@media (min-width: 768px) and (min-height: 600px));
+
 @theme {
   --color-coffee-50: #faf6f1;
   --color-coffee-100: #f0e4d5;
