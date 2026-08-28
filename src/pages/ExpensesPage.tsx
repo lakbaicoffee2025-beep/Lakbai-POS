@@ -468,7 +468,14 @@ export default function ExpensesPage() {
                       </div>
                       <div className="text-xs text-coffee-400">
                         Received {formatMoney(r.amountReceived, symbol)} · Spent{" "}
-                        {formatMoney(r.totalExpenses, symbol)}
+                        {formatMoney(r.totalExpenses, symbol)} ·{" "}
+                        <span
+                          className={
+                            r.remainingCash >= 0 ? "text-emerald-600 font-medium" : "text-red-600 font-medium"
+                          }
+                        >
+                          Remaining {formatMoney(r.remainingCash, symbol)}
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2 text-xs font-semibold shrink-0">
