@@ -241,7 +241,7 @@ export interface ExpenseLineItem {
   photoDataUrl?: string;
 }
 
-export type CashReturnStatus = "returned" | "not_returned" | null;
+export type CashReturnStatus = "returned" | "not_returned" | "carried_forward" | null;
 
 /**
  * An automatic, per-staff snapshot of the Expense Report form currently

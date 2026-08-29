@@ -89,7 +89,13 @@ export function newLineItem(): ExpenseLineItem {
   return { id: newId(), description: "", amount: 0 };
 }
 
-/** Sum of unreturned positive remaining cash from the previous day's reports. */
+/**
+ * Sum of still-outstanding positive remaining cash from the previous day's
+ * reports — excludes anything already physically returned, and anything
+ * already carried into a later day's Cash Received (see
+ * markReportsCarriedForward), so the same leftover cash never gets offered
+ * as a carryover more than once.
+ */
 export async function getYesterdayCarryover(
   date: string
 ): Promise<{ amount: number; reports: ExpenseReport[] }> {
@@ -97,10 +103,26 @@ export async function getYesterdayCarryover(
   d.setDate(d.getDate() - 1);
   const yesterday = d.toISOString().split("T")[0];
   const reports = (await db.expenseReports.where("date").equals(yesterday).toArray()).filter(
-    (r) => r.cashReturnStatus !== "returned"
+    (r) => r.cashReturnStatus !== "returned" && r.cashReturnStatus !== "carried_forward"
   );
   const amount = reports.reduce((s, r) => s + Math.max(0, r.remainingCash), 0);
   return { amount, reports };
+}
+
+/**
+ * Marks reports as carried forward once their leftover cash has actually
+ * been folded into a later day's Cash Received (the "+ Add to Cash" button
+ * on the carryover banner) — keeps that cash from ever being offered again
+ * as a carryover, and updates their Report History badge to reflect it's
+ * been accounted for rather than sitting on "Not returned yet" forever.
+ */
+export async function markReportsCarriedForward(reportIds: string[]): Promise<void> {
+  if (reportIds.length === 0) return;
+  await db.transaction("rw", db.expenseReports, async () => {
+    for (const id of reportIds) {
+      await db.expenseReports.update(id, { cashReturnStatus: "carried_forward" });
+    }
+  });
 }
 
 /**

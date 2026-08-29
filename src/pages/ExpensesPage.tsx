@@ -7,6 +7,7 @@ import {
   deleteExpenseReport,
   newLineItem,
   getYesterdayCarryover,
+  markReportsCarriedForward,
   clearOldExpensePhotos,
 } from "../db/expenseReports";
 import { useAuthStore } from "../store/authStore";
@@ -48,6 +49,10 @@ export default function ExpensesPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [carryover, setCarryover] = useState<{ amount: number; reports: ExpenseReport[] } | null>(null);
+  // Report IDs whose leftover cash was just folded into cashReceived below
+  // via "+ Add to Cash" — marked carried-forward only once this report is
+  // actually saved, so an abandoned draft never leaves them wrongly flagged.
+  const [appliedCarryoverReportIds, setAppliedCarryoverReportIds] = useState<string[]>([]);
   const [cleanupDays, setCleanupDays] = useState("30");
   const [customCleanupDays, setCustomCleanupDays] = useState("30");
   const [cleaningUp, setCleaningUp] = useState(false);
@@ -118,6 +123,7 @@ export default function ExpensesPage() {
     setReturnStatus(null);
     setReturnedTo("");
     setError(null);
+    setAppliedCarryoverReportIds([]);
     db.expenseDrafts.delete(currentUser.id);
   }
 
@@ -156,6 +162,10 @@ export default function ExpensesPage() {
     if (!carryover) return;
     const current = parseFloat(cashReceived) || 0;
     setCashReceived((current + carryover.amount).toFixed(2));
+    // Only reports that actually contributed positive leftover cash — a
+    // report with zero/negative remainingCash sat in the list but added
+    // nothing, so it shouldn't get flagged as carried forward.
+    setAppliedCarryoverReportIds(carryover.reports.filter((r) => r.remainingCash > 0).map((r) => r.id));
     setCarryover(null);
   }
 
@@ -186,6 +196,13 @@ export default function ExpensesPage() {
         cashReturnStatus: returnStatus,
         returnedTo,
       });
+      // Only now — once this report is actually persisted — mark
+      // yesterday's report(s) as carried forward. Doing it earlier (right
+      // when "+ Add to Cash" is clicked) would flag them even if this
+      // draft is later abandoned without saving.
+      if (appliedCarryoverReportIds.length > 0) {
+        await markReportsCarriedForward(appliedCarryoverReportIds);
+      }
       resetForm();
     } finally {
       setSubmitting(false);
@@ -499,6 +516,8 @@ export default function ExpensesPage() {
                     <div className="mt-2">
                       {r.cashReturnStatus === "returned" ? (
                         <Badge tone="success">Returned{r.returnedTo ? ` to ${r.returnedTo}` : ""}</Badge>
+                      ) : r.cashReturnStatus === "carried_forward" ? (
+                        <Badge tone="success">Carried to next day's cash</Badge>
                       ) : r.cashReturnStatus === "not_returned" ? (
                         <Badge tone="warning">Not returned yet</Badge>
                       ) : (
