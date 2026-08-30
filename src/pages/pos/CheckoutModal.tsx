@@ -84,10 +84,10 @@ export default function CheckoutModal({
                 gcashRef: gcashRef || undefined,
               };
 
-      const orderNo = await nextOrderNo();
+      const orderId = newId();
       const order: Order = {
-        id: newId(),
-        orderNo,
+        id: orderId,
+        orderNo: 0, // set for real inside the transaction below
         shiftId: activeShift.id,
         cashierId: currentUser.id,
         cashierName: currentUser.name,
@@ -127,10 +127,18 @@ export default function CheckoutModal({
         }
       });
 
-      await db.orders.add(order);
-      if (usage.size > 0) {
-        await deductInventoryForOrder(usage, order.id, currentUser.id, currentUser.name);
-      }
+      // One atomic transaction for both the order and its stock deduction —
+      // if the deduction step throws for any reason, the order write rolls
+      // back too, instead of leaving a "completed" order the cashier never
+      // sees confirmed (and would understandably retry, creating a
+      // duplicate sale for the same cart).
+      await db.transaction("rw", db.orders, db.ingredients, db.inventoryMovements, async () => {
+        order.orderNo = await nextOrderNo();
+        await db.orders.add(order);
+        if (usage.size > 0) {
+          await deductInventoryForOrder(usage, order.id, currentUser.id, currentUser.name);
+        }
+      });
 
       clearCart();
       onComplete(order);
@@ -142,7 +150,7 @@ export default function CheckoutModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Checkout">
+    <Modal open onClose={submitting ? () => {} : onClose} title="Checkout">
       <div className="space-y-4">
         <div className="text-center py-2">
           <div className="text-xs text-coffee-400">Amount Due</div>

@@ -42,11 +42,11 @@ export default function PaidOutModal({
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={submitting ? () => {} : onClose}
       title="Paid Out"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" disabled={submitting} onClick={onClose}>
             Cancel
           </Button>
           <Button disabled={submitting} onClick={handleSubmit}>

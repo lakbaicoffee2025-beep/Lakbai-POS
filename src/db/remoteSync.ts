@@ -163,15 +163,23 @@ export async function pullAll(): Promise<boolean> {
     );
     if (present.length === 0) return false;
 
+    // One transaction per table, not one giant transaction spanning every
+    // table — a single multi-table transaction holds a write lock on ALL of
+    // them (including orders/ingredients) for as long as the whole loop
+    // takes, which can stall an in-progress checkout (its own order +
+    // inventory-deduction transaction just queues behind it) long enough to
+    // look like a hang or a failure. Per-table transactions keep each lock
+    // brief and scoped to just that table, and a failure on one table no
+    // longer aborts ones that already committed.
     hydrating = true;
     try {
-      await db.transaction("rw", present.map((name) => db.table(name)), async () => {
-        for (const name of present) {
-          const rows = remote[name] as unknown[];
+      for (const name of present) {
+        const rows = remote[name] as unknown[];
+        await db.transaction("rw", db.table(name), async () => {
           await db.table(name).clear();
           if (rows.length > 0) await db.table(name).bulkAdd(rows);
-        }
-      });
+        });
+      }
     } finally {
       hydrating = false;
     }
