@@ -70,23 +70,34 @@ let hydrating = false;
 let hooksInstalled = false;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-async function pushTable(name: string): Promise<void> {
-  if (LOCAL_ONLY_TABLES.has(name)) return;
+async function pushTable(name: string): Promise<boolean> {
+  if (LOCAL_ONLY_TABLES.has(name)) return true;
   try {
     const rows = await db.table(name).toArray();
-    await fetch(SYNC_URL, {
+    const res = await fetch(SYNC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: name, value: rows }),
     });
+    return res.ok;
   } catch {
-    // Offline or sync endpoint unavailable — local write already succeeded,
-    // it just won't be visible to other devices until the next successful push.
+    // Offline, sync endpoint unavailable, or the request itself failed
+    // (timeout, dropped connection, payload rejected) — the local write
+    // already succeeded, it just hasn't reached the server yet. Reporting
+    // this as a failure (rather than silently swallowing it) is what lets
+    // pullAll below know not to overwrite this table with a stale
+    // server copy that doesn't have this write in it yet.
+    return false;
   }
 }
 
-/** Pushes and clears whatever is currently queued in memory, right now. */
-async function flushNow(): Promise<void> {
+/**
+ * Pushes and clears whatever is currently queued in memory, right now.
+ * Returns the names of any tables that failed to push — those stay marked
+ * dirty (re-added to dirtyTables) so the next flush retries them, instead
+ * of being silently dropped.
+ */
+async function flushNow(): Promise<Set<string>> {
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
@@ -94,23 +105,49 @@ async function flushNow(): Promise<void> {
   const tables = Array.from(dirtyTables);
   dirtyTables.clear();
   persistPending();
+  const failed = new Set<string>();
   if (tables.length > 0) {
-    await Promise.all(tables.map(pushTable));
+    const results = await Promise.all(
+      tables.map(async (name) => [name, await pushTable(name)] as const)
+    );
+    for (const [name, ok] of results) {
+      if (!ok) {
+        failed.add(name);
+        dirtyTables.add(name);
+      }
+    }
+    if (failed.size > 0) persistPending();
   }
+  return failed;
 }
 
-/** Pushes and clears whatever a previous session left queued but never flushed
- * (e.g. it was reloaded/closed within the debounce window). */
-async function flushPersistedLeftovers(): Promise<void> {
+/**
+ * Pushes and clears whatever a previous session left queued but never
+ * flushed (e.g. it was reloaded/closed within the debounce window).
+ * Returns any table names that failed to push, for the same reason as
+ * flushNow above.
+ */
+async function flushPersistedLeftovers(): Promise<Set<string>> {
   const leftover = readPersistedPending().filter((n) => !LOCAL_ONLY_TABLES.has(n));
+  const failed = new Set<string>();
   if (leftover.length > 0) {
-    await Promise.all(leftover.map(pushTable));
+    const results = await Promise.all(
+      leftover.map(async (name) => [name, await pushTable(name)] as const)
+    );
+    for (const [name, ok] of results) {
+      if (!ok) {
+        failed.add(name);
+        dirtyTables.add(name);
+      }
+    }
   }
   try {
     localStorage.removeItem(PENDING_KEY);
   } catch {
     // ignore
   }
+  if (failed.size > 0) persistPending();
+  return failed;
 }
 
 function scheduleFlush(): void {
@@ -150,16 +187,26 @@ export async function pullAll(): Promise<boolean> {
   // a table right out from under a write that's still queued (this
   // session's own debounce window, or one left over from a session that
   // reloaded/crashed before it fired), silently reverting it to the
-  // server's stale copy.
-  await flushPersistedLeftovers();
-  await flushNow();
+  // server's stale copy. And if that push itself fails (flaky connection,
+  // request rejected, timeout) — critically — this table must NOT be
+  // pulled this round either: the server's snapshot is now known to be
+  // missing this device's not-yet-synced write, so pulling it anyway would
+  // silently erase that write (e.g. a completed sale) from local storage
+  // too. It stays dirty and gets retried on the next poll instead.
+  const failedLeftovers = await flushPersistedLeftovers();
+  const failedNow = await flushNow();
+  const failedPush = new Set([...failedLeftovers, ...failedNow]);
   try {
     const res = await fetch(`${SYNC_URL}?all=1`);
     if (!res.ok) return false;
     const remote = (await res.json()) as Record<string, unknown[] | null>;
     const tableNames = new Set(db.tables.map((t) => t.name));
     const present = Object.keys(remote).filter(
-      (k) => tableNames.has(k) && !LOCAL_ONLY_TABLES.has(k) && Array.isArray(remote[k])
+      (k) =>
+        tableNames.has(k) &&
+        !LOCAL_ONLY_TABLES.has(k) &&
+        Array.isArray(remote[k]) &&
+        !failedPush.has(k)
     );
     if (present.length === 0) return false;
 
