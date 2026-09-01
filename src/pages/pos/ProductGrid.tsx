@@ -4,6 +4,7 @@ import { db } from "../../db/db";
 import type { Product } from "../../types";
 import { formatMoney } from "../../lib/format";
 import { useSettingsStore } from "../../store/settingsStore";
+import { pullAll } from "../../db/remoteSync";
 import ProductModal from "./ProductModal";
 import { useCartStore } from "../../store/cartStore";
 import type { CartLineModifier, ProductVariant } from "../../types";
@@ -48,6 +49,15 @@ export default function ProductGrid({
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const addLine = useCartStore((s) => s.addLine);
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "done">("idle");
+
+  async function handleRefresh() {
+    if (refreshState === "loading") return;
+    setRefreshState("loading");
+    await pullAll();
+    setRefreshState("done");
+    setTimeout(() => setRefreshState("idle"), 1200);
+  }
 
   function toggleViewMode() {
     setViewMode((prev) => {
@@ -137,6 +147,21 @@ export default function ProductGrid({
             className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
           >
             {darkMode ? "☀️" : "🌙"}
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshState === "loading"}
+            aria-label="Refresh menu and stock"
+            title="Refresh menu and stock"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white disabled:opacity-60 dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+          >
+            {refreshState === "loading" ? (
+              <span className="inline-block animate-spin">🔄</span>
+            ) : refreshState === "done" ? (
+              <span className="text-emerald-600 dark:text-emerald-400">✓</span>
+            ) : (
+              "🔄"
+            )}
           </button>
           {headerAction}
         </div>
