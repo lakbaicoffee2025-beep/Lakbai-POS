@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { newId } from "../lib/id";
-import type { CartLine, CartLineModifier, DiscountType } from "../types";
+import type { CartLine, CartLineModifier, DiscountType, OpenTicket } from "../types";
 
 function computeLineTotal(line: Omit<CartLine, "lineTotal" | "id">): number {
   const modTotal = line.modifiers.reduce((sum, m) => sum + m.priceDelta, 0);
@@ -15,6 +15,12 @@ function computeLineTotal(line: Omit<CartLine, "lineTotal" | "id">): number {
 interface CartState {
   lines: CartLine[];
   orderDiscount: { id: string; name: string; type: DiscountType; value: number } | null;
+  // Set while the current cart originated from resuming a held ticket, so
+  // holding it again can reuse the same name/notes instead of asking for
+  // them a second time, and can update that same ticket in place instead
+  // of creating a duplicate. Cleared whenever the cart is cleared (sale
+  // completed, held, or manually emptied).
+  resumedTicket: OpenTicket | null;
   addLine: (
     line: Omit<CartLine, "id" | "lineTotal">
   ) => void;
@@ -32,11 +38,13 @@ interface CartState {
     lines: CartLine[],
     orderDiscount: { id: string; name: string; type: DiscountType; value: number } | null
   ) => void;
+  resumeTicket: (ticket: OpenTicket) => void;
 }
 
 export const useCartStore = create<CartState>((set) => ({
   lines: [],
   orderDiscount: null,
+  resumedTicket: null,
   addLine: (line) =>
     set((state) => ({
       lines: [
@@ -67,8 +75,10 @@ export const useCartStore = create<CartState>((set) => ({
       ),
     })),
   setOrderDiscount: (discount) => set({ orderDiscount: discount }),
-  clearCart: () => set({ lines: [], orderDiscount: null }),
-  loadCart: (lines, orderDiscount) => set({ lines, orderDiscount }),
+  clearCart: () => set({ lines: [], orderDiscount: null, resumedTicket: null }),
+  loadCart: (lines, orderDiscount) => set({ lines, orderDiscount, resumedTicket: null }),
+  resumeTicket: (ticket) =>
+    set({ lines: ticket.lines, orderDiscount: ticket.orderDiscount, resumedTicket: ticket }),
 }));
 
 export type { CartLineModifier };

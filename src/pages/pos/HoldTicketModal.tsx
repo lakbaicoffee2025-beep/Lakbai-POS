@@ -12,9 +12,12 @@ export default function HoldTicketModal({ onClose }: { onClose: () => void }) {
   const lines = useCartStore((s) => s.lines);
   const orderDiscount = useCartStore((s) => s.orderDiscount);
   const clearCart = useCartStore((s) => s.clearCart);
+  const resumedTicket = useCartStore((s) => s.resumedTicket);
 
-  const [name, setName] = useState("");
-  const [notes, setNotes] = useState("");
+  // Re-holding a ticket that was just resumed re-uses its name/notes
+  // instead of asking again.
+  const [name, setName] = useState(resumedTicket?.name ?? "");
+  const [notes, setNotes] = useState(resumedTicket?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,18 +28,33 @@ export default function HoldTicketModal({ onClose }: { onClose: () => void }) {
     }
     setSubmitting(true);
     const now = Date.now();
-    await db.openTickets.add({
-      id: newId(),
-      name: name.trim(),
-      notes: notes.trim() || undefined,
-      lines,
-      orderDiscount,
-      shiftId: activeShift.id,
-      createdBy: currentUser.id,
-      createdByName: currentUser.name,
-      createdAt: now,
-      updatedAt: now,
-    });
+    if (resumedTicket) {
+      // Update the same ticket in place rather than creating a new one —
+      // it never actually left Open Tickets when it was resumed, so this
+      // just writes the current cart back to it and keeps its original
+      // held-since time.
+      await db.openTickets.put({
+        ...resumedTicket,
+        name: name.trim(),
+        notes: notes.trim() || undefined,
+        lines,
+        orderDiscount,
+        updatedAt: now,
+      });
+    } else {
+      await db.openTickets.add({
+        id: newId(),
+        name: name.trim(),
+        notes: notes.trim() || undefined,
+        lines,
+        orderDiscount,
+        shiftId: activeShift.id,
+        createdBy: currentUser.id,
+        createdByName: currentUser.name,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
     clearCart();
     setSubmitting(false);
     onClose();

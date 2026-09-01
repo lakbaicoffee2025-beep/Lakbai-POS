@@ -23,7 +23,7 @@ export default function OpenTicketsPanel({
     [shiftId]
   );
   const cartLines = useCartStore((s) => s.lines);
-  const loadCart = useCartStore((s) => s.loadCart);
+  const resumeTicket = useCartStore((s) => s.resumeTicket);
   const settings = useSettingsStore((s) => s.settings);
   const symbol = settings?.currencySymbol ?? "₱";
 
@@ -36,15 +36,20 @@ export default function OpenTicketsPanel({
     ).total;
   }
 
-  async function handleResume(t: OpenTicket) {
+  function handleResume(t: OpenTicket) {
     if (
       cartLines.length > 0 &&
       !confirm("Your current cart isn't empty — resuming this ticket will replace it. Continue?")
     ) {
       return;
     }
-    loadCart(t.lines, t.orderDiscount);
-    await db.openTickets.delete(t.id);
+    // Deliberately NOT deleted here — it only comes off Open Tickets once
+    // the sale it becomes actually completes (checkout) or is explicitly
+    // deleted below. That way switching to a different ticket, or backing
+    // out without paying, never loses it; and holding it again re-uses
+    // this same ticket (see HoldTicketModal) instead of asking for its
+    // name a second time.
+    resumeTicket(t);
     onClose();
   }
 

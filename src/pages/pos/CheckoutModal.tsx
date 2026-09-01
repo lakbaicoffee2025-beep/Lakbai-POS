@@ -22,6 +22,7 @@ export default function CheckoutModal({
   const lines = useCartStore((s) => s.lines);
   const orderDiscount = useCartStore((s) => s.orderDiscount);
   const clearCart = useCartStore((s) => s.clearCart);
+  const resumedTicket = useCartStore((s) => s.resumedTicket);
   const settings = useSettingsStore((s) => s.settings);
   const currentUser = useAuthStore((s) => s.currentUser);
   const activeShift = useShiftStore((s) => s.activeShift);
@@ -131,14 +132,26 @@ export default function CheckoutModal({
       // if the deduction step throws for any reason, the order write rolls
       // back too, instead of leaving a "completed" order the cashier never
       // sees confirmed (and would understandably retry, creating a
-      // duplicate sale for the same cart).
-      await db.transaction("rw", db.orders, db.ingredients, db.inventoryMovements, async () => {
-        order.orderNo = await nextOrderNo();
-        await db.orders.add(order);
-        if (usage.size > 0) {
-          await deductInventoryForOrder(usage, order.id, currentUser.id, currentUser.name);
+      // duplicate sale for the same cart). If this cart came from a held
+      // ticket, that ticket only comes off Open Tickets here, now that the
+      // sale it represents has actually gone through.
+      await db.transaction(
+        "rw",
+        db.orders,
+        db.ingredients,
+        db.inventoryMovements,
+        db.openTickets,
+        async () => {
+          order.orderNo = await nextOrderNo();
+          await db.orders.add(order);
+          if (usage.size > 0) {
+            await deductInventoryForOrder(usage, order.id, currentUser.id, currentUser.name);
+          }
+          if (resumedTicket) {
+            await db.openTickets.delete(resumedTicket.id);
+          }
         }
-      });
+      );
 
       clearCart();
       onComplete(order);
