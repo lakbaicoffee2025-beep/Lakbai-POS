@@ -13,7 +13,7 @@ import ShiftReportView from "../components/ShiftReportView";
 import CloseShiftModal from "./CloseShiftModal";
 import PaidOutModal from "./PaidOutModal";
 import { PAID_OUT_CATEGORY } from "../db/paidOut";
-import type { Expense, Order, Shift } from "../types";
+import type { Expense, Order, OpenTicket, Shift } from "../types";
 
 export default function ShiftPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
@@ -51,6 +51,18 @@ export default function ShiftPage() {
       activeShift
         ? db.expenses.where("shiftId").equals(activeShift.id).toArray()
         : Promise.resolve<Expense[]>([]),
+    [activeShift?.id]
+  );
+  // Held tickets only ever resolve into a real sale by being resumed on
+  // this same shift (see OpenTicketsPanel) — there's no other way to reach
+  // them. Closing the shift while any are still open would strand them
+  // forever: invisible, unpaid, and never counted in sales, with no way
+  // for anyone (even an admin) to recover them afterward.
+  const openTickets = useLiveQuery(
+    () =>
+      activeShift
+        ? db.openTickets.where("shiftId").equals(activeShift.id).toArray()
+        : Promise.resolve<OpenTicket[]>([]),
     [activeShift?.id]
   );
 
@@ -142,6 +154,22 @@ export default function ShiftPage() {
               </div>
             )}
 
+            {openTickets && openTickets.length > 0 && (
+              <div className="mb-4 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 dark:bg-amber-900/20 dark:border-amber-800">
+                <div className="font-semibold text-amber-800 dark:text-amber-300">
+                  {openTickets.length} open ticket{openTickets.length > 1 ? "s" : ""} still unpaid
+                </div>
+                <div className="text-amber-700 dark:text-amber-400 mt-1">
+                  {openTickets.map((t) => t.name).join(", ")}
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                  Held tickets can only be finished on this shift — closing now would strand
+                  them unpaid, with no way to recover them afterward. Go back to POS, resume
+                  each one, and either complete or delete it before closing.
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 variant="secondary"
@@ -150,7 +178,12 @@ export default function ShiftPage() {
               >
                 Paid Out
               </Button>
-              <Button className="flex-[2]" size="lg" onClick={() => setCloseOpen(true)}>
+              <Button
+                className="flex-[2]"
+                size="lg"
+                disabled={!!openTickets && openTickets.length > 0}
+                onClick={() => setCloseOpen(true)}
+              >
                 Close Shift
               </Button>
             </div>
