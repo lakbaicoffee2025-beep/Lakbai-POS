@@ -48,28 +48,39 @@ export default function POSPage() {
   // covers an accidental page reload/crash mid-sale. Only ever attempted
   // once per shift so it can't fight a deliberate clear afterward.
   const restoredShiftRef = useRef<string | null>(null);
+  const [cartRestored, setCartRestored] = useState(false);
   useEffect(() => {
     if (!activeShift || restoredShiftRef.current === activeShift.id) return;
     restoredShiftRef.current = activeShift.id;
+    setCartRestored(false);
     db.draftCarts.get(activeShift.id).then((draft) => {
       if (draft && (draft.lines.length > 0 || draft.orderDiscount)) {
         loadCart(draft.lines, draft.orderDiscount);
       }
+      setCartRestored(true);
     });
   }, [activeShift, loadCart]);
 
   // Keep that snapshot current as the cart changes, so it's always safe to
   // reload. Also naturally clears itself once the cart empties out (sale
   // completed, ticket held, or manually cleared).
+  //
+  // Gated on cartRestored so this can't fire before the read above
+  // finishes — otherwise the very first render (cart still empty, draft
+  // not read back yet) would overwrite the saved draft with nothing. That
+  // race is exactly what a backgrounded tab getting discarded and reloaded
+  // hits every time: the app reopens on the home screen, POSPage remounts,
+  // and without this gate the empty initial cart wins the race and
+  // silently erases whatever sale was actually in progress.
   useEffect(() => {
-    if (!activeShift) return;
+    if (!activeShift || !cartRestored) return;
     db.draftCarts.put({
       shiftId: activeShift.id,
       lines,
       orderDiscount,
       updatedAt: Date.now(),
     });
-  }, [activeShift, lines, orderDiscount]);
+  }, [activeShift, cartRestored, lines, orderDiscount]);
 
   if (!activeShift) {
     return (
