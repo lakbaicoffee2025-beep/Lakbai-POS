@@ -9,6 +9,7 @@ import { Modal, Button } from "../../components/ui";
 import { db } from "../../db/db";
 import { newId } from "../../lib/id";
 import { nextOrderNo } from "../../db/counters";
+import { pushTables } from "../../db/remoteSync";
 import { deductInventoryForOrder, cartLineIngredientUsage } from "../../db/inventory";
 import type { Order, Payment, PaymentMethod } from "../../types";
 
@@ -155,6 +156,15 @@ export default function CheckoutModal({
 
       clearCart();
       onComplete(order);
+
+      // Push this sale to the server right away instead of waiting for the
+      // usual debounce — a completed sale only exists on this one device
+      // until it's synced, and that window is exactly when it's at risk
+      // (the app's background process getting reclaimed, or someone
+      // clearing this installed app's storage while troubleshooting it).
+      // Fire-and-forget: the normal automatic sync still covers it if this
+      // is offline or fails, this just shortens how long it's exposed.
+      pushTables(["orders", "ingredients", "inventoryMovements", "openTickets"]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to complete sale");
     } finally {
