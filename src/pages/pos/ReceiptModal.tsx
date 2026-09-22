@@ -3,6 +3,7 @@ import { formatMoney } from "../../lib/format";
 import { useSettingsStore } from "../../store/settingsStore";
 import { Modal, Button } from "../../components/ui";
 import { format } from "date-fns";
+import { CheckCircleIcon } from "../../components/icons";
 
 export default function ReceiptModal({
   order,
@@ -18,8 +19,10 @@ export default function ReceiptModal({
     <Modal open onClose={onClose} title="Sale Complete">
       <div className="space-y-3">
         <div className="text-center">
-          <div className="text-3xl">✅</div>
-          <div className="text-lg font-bold text-coffee-900 mt-1 dark:text-cream-50">
+          <div className="flex justify-center text-sage-600 dark:text-sage-600">
+            <CheckCircleIcon size={40} />
+          </div>
+          <div className="font-display text-lg text-coffee-900 mt-1 dark:text-cream-50">
             Order #{order.orderNo}
           </div>
           <div className="text-xs text-coffee-400">
@@ -44,7 +47,7 @@ export default function ReceiptModal({
                   </div>
                 )}
               </div>
-              <div className="shrink-0 font-medium">
+              <div className="tabnum shrink-0 font-medium">
                 {formatMoney(item.lineTotal, symbol)}
               </div>
             </div>
@@ -69,8 +72,8 @@ export default function ReceiptModal({
             </div>
           )}
           <div className="flex justify-between text-lg font-bold text-coffee-900 dark:text-cream-50">
-            <span>Total</span>
-            <span>{formatMoney(order.total, symbol)}</span>
+            <span className="font-display text-base">Total</span>
+            <span className="tabnum">{formatMoney(order.total, symbol)}</span>
           </div>
           <div className="flex justify-between text-coffee-500 pt-1 capitalize">
             <span>Paid via {order.payment.method}</span>

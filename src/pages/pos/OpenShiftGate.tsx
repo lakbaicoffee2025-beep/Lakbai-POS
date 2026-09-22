@@ -3,6 +3,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useShiftStore } from "../../store/shiftStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { Button } from "../../components/ui";
+import { CoffeeIcon, SunIcon, MoonIcon } from "../../components/icons";
 
 export default function OpenShiftGate({
   darkMode,
@@ -31,12 +32,15 @@ export default function OpenShiftGate({
           aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
           className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
         >
-          {darkMode ? "☀️" : "🌙"}
+          {darkMode ? <SunIcon size={18} /> : <MoonIcon size={18} />}
         </button>
       )}
       <div className="w-full max-w-sm bg-white rounded-2xl border border-coffee-100 shadow-sm p-6 text-center dark:bg-coffee-900 dark:border-coffee-800">
-        <div className="text-3xl mb-2">🕒</div>
-        <h2 className="text-lg font-bold text-coffee-900 dark:text-cream-50">Start Your Shift</h2>
+        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent to-accent-dark mx-auto mb-3 flex items-center justify-center text-white">
+          <CoffeeIcon size={26} />
+        </div>
+        <div className="font-display text-sm tracking-widest uppercase text-accent-dark">LAKBAI</div>
+        <h2 className="text-lg font-bold text-coffee-900 dark:text-cream-50 mt-1">Start Your Shift</h2>
         <p className="text-sm text-coffee-400 mt-1 mb-5">
           Enter your starting cash drawer amount to begin selling.
         </p>

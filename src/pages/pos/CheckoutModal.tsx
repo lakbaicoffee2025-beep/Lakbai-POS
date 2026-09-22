@@ -11,7 +11,14 @@ import { newId } from "../../lib/id";
 import { nextOrderNo } from "../../db/counters";
 import { pushTables } from "../../db/remoteSync";
 import { deductInventoryForOrder, cartLineIngredientUsage } from "../../db/inventory";
+import { BanknoteIcon, SmartphoneIcon, SplitIcon } from "../../components/icons";
 import type { Order, Payment, PaymentMethod } from "../../types";
+
+const METHOD_ICONS: Record<PaymentMethod, typeof BanknoteIcon> = {
+  cash: BanknoteIcon,
+  gcash: SmartphoneIcon,
+  split: SplitIcon,
+};
 
 export default function CheckoutModal({
   onClose,
@@ -176,8 +183,8 @@ export default function CheckoutModal({
     <Modal open onClose={submitting ? () => {} : onClose} title="Checkout">
       <div className="space-y-4">
         <div className="text-center py-2">
-          <div className="text-xs text-coffee-400">Amount Due</div>
-          <div className="text-3xl font-bold text-coffee-900 dark:text-cream-50">
+          <div className="text-xs font-semibold uppercase tracking-wide text-coffee-400">Amount Due</div>
+          <div className="tabnum font-display text-3xl text-accent-dark">
             {formatMoney(totals.total, symbol)}
           </div>
         </div>
@@ -195,19 +202,26 @@ export default function CheckoutModal({
         </div>
 
         <div className="flex gap-2">
-          {(["cash", "gcash", "split"] as PaymentMethod[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMethod(m)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize border ${
-                method === m
-                  ? "bg-coffee-900 text-cream-50 border-coffee-900"
-                  : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
-              }`}
-            >
-              {m === "gcash" ? "GCash" : m}
-            </button>
-          ))}
+          {(["cash", "gcash", "split"] as PaymentMethod[]).map((m) => {
+            const Icon = METHOD_ICONS[m];
+            const selected = method === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setMethod(m)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize border flex items-center justify-center gap-1.5 ${
+                  selected
+                    ? m === "gcash"
+                      ? "bg-sage-600 text-white border-sage-600"
+                      : "bg-accent text-white border-accent"
+                    : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
+                }`}
+              >
+                <Icon size={15} />
+                {m === "gcash" ? "GCash" : m}
+              </button>
+            );
+          })}
         </div>
 
         {method === "cash" && (
@@ -220,11 +234,11 @@ export default function CheckoutModal({
               inputMode="decimal"
               value={cashTendered}
               onChange={(e) => setCashTendered(e.target.value)}
-              className="w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
+              className="tabnum w-full rounded-lg border border-coffee-200 px-3 py-3 text-lg font-semibold outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 dark:border-coffee-700 dark:bg-coffee-800 dark:text-cream-50"
             />
             <div className="flex justify-between text-sm mt-2 text-coffee-600 dark:text-coffee-300">
               <span>Change Due</span>
-              <span className="font-semibold">{formatMoney(changeDue, symbol)}</span>
+              <span className="tabnum font-semibold text-sage-700 dark:text-sage-600">{formatMoney(changeDue, symbol)}</span>
             </div>
           </div>
         )}

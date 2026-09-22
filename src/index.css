@@ -28,8 +28,23 @@
   --color-cream-100: #f5ead6;
   --color-cream-200: #ecd9b8;
 
-  --color-accent: #d97b3f;
-  --color-accent-dark: #b35f2a;
+  /* Deepened, bolder terracotta — accent = the interactive color itself,
+     accent-dark = its hover/pressed state (same semantic pattern as before,
+     just a richer warm terracotta instead of the old flat orange). */
+  --color-accent: #c2410c;
+  --color-accent-dark: #9a3412;
+
+  /* A second accent family, deliberately distinct in hue from the terracotta
+     accent above — reserved for "this is good news" moments (GCash payment,
+     an applied discount, a positive balance) so those read at a glance
+     instead of blending into every other terracotta button on screen. */
+  --color-sage-50: #eaf7f0;
+  --color-sage-100: #dcf5ea;
+  --color-sage-600: #059669;
+  --color-sage-700: #046c50;
+
+  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Calistoga", ui-serif, serif;
 }
 
 html,
@@ -42,7 +57,12 @@ body,
 body {
   background-color: var(--color-cream-50);
   color: var(--color-coffee-900);
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+}
+
+.tabnum {
+  font-variant-numeric: tabular-nums;
 }
 
 * {

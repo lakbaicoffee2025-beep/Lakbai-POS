@@ -15,6 +15,7 @@ import ReceiptModal from "./ReceiptModal";
 import OpenShiftGate from "./OpenShiftGate";
 import HoldTicketModal from "./HoldTicketModal";
 import OpenTicketsPanel from "./OpenTicketsPanel";
+import { TicketIcon } from "../../components/icons";
 import type { Order } from "../../types";
 
 export default function POSPage() {
@@ -108,9 +109,10 @@ export default function POSPage() {
           headerAction={
             <button
               onClick={() => setTicketsOpen(true)}
-              className="shrink-0 bg-coffee-900 text-cream-50 rounded-lg pl-3 pr-2.5 text-xs font-semibold shadow-sm flex items-center gap-1.5"
+              aria-label="Open tickets"
+              className="shrink-0 bg-coffee-900 text-cream-50 rounded-lg pl-2.5 pr-2.5 h-9 text-xs font-semibold shadow-sm flex items-center gap-1.5"
             >
-              🎫
+              <TicketIcon size={16} />
               {ticketCount > 0 && (
                 <span className="bg-accent rounded-full w-5 h-5 flex items-center justify-center text-[11px]">
                   {ticketCount}

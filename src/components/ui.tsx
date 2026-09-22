@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { CloseIcon } from "./icons";
 
 export function PageHeader({
   title,
@@ -13,7 +14,7 @@ export function PageHeader({
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6 border-b border-coffee-100 bg-white dark:border-coffee-800 dark:bg-coffee-900">
       <div className="min-w-0">
-        <h1 className="text-lg sm:text-xl font-bold text-coffee-900 truncate dark:text-cream-50">
+        <h1 className="font-display text-lg sm:text-xl text-coffee-900 truncate dark:text-cream-50">
           {title}
         </h1>
         {subtitle && (
@@ -129,13 +130,13 @@ export function Modal({
         )}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-coffee-100 shrink-0 dark:border-coffee-800">
-          <h2 className="font-bold text-coffee-900 dark:text-cream-50">{title}</h2>
+          <h2 className="font-display text-lg text-coffee-900 dark:text-cream-50">{title}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-coffee-500 hover:bg-coffee-100 dark:text-coffee-300 dark:hover:bg-coffee-800"
             aria-label="Close"
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         </div>
         <div className="px-5 py-4 overflow-y-auto flex-1">{children}</div>

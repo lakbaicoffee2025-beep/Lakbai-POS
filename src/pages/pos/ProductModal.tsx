@@ -5,6 +5,7 @@ import type { CartLineModifier, ModifierGroup, Product, ProductVariant } from ".
 import { Modal, Button } from "../../components/ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { formatMoney } from "../../lib/format";
+import { MinusIcon, PlusIcon } from "../../components/icons";
 
 export default function ProductModal({
   product,
@@ -148,16 +149,18 @@ export default function ProductModal({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg dark:bg-coffee-800 dark:text-cream-100"
+              aria-label="Decrease quantity"
+              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 flex items-center justify-center dark:bg-coffee-800 dark:text-cream-100"
             >
-              −
+              <MinusIcon size={14} />
             </button>
             <span className="w-6 text-center font-semibold dark:text-cream-50">{qty}</span>
             <button
               onClick={() => setQty((q) => q + 1)}
-              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 font-bold text-lg dark:bg-coffee-800 dark:text-cream-100"
+              aria-label="Increase quantity"
+              className="w-9 h-9 rounded-full bg-coffee-100 text-coffee-800 flex items-center justify-center dark:bg-coffee-800 dark:text-cream-100"
             >
-              +
+              <PlusIcon size={14} />
             </button>
           </div>
         </div>
@@ -168,7 +171,7 @@ export default function ProductModal({
           Cancel
         </Button>
         <Button
-          className="flex-[2]"
+          className="flex-[2] tabnum"
           onClick={() =>
             onAdd({ variant, modifiers: modifierList, qty, notes: notes || undefined })
           }

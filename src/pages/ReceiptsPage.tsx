@@ -6,10 +6,12 @@ import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useDarkModeStore } from "../store/darkModeStore";
+import { pullAll } from "../db/remoteSync";
 import { formatMoney } from "../lib/format";
 import type { Order } from "../types";
 import { PageHeader, Card, Input, Badge, EmptyState } from "../components/ui";
 import ReceiptDetailModal from "../components/ReceiptDetailModal";
+import { SunIcon, MoonIcon, RefreshIcon, CheckIcon } from "../components/icons";
 
 export default function ReceiptsPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
@@ -22,6 +24,15 @@ export default function ReceiptsPage() {
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "done">("idle");
+
+  async function handleRefresh() {
+    if (refreshState === "loading") return;
+    setRefreshState("loading");
+    await pullAll();
+    setRefreshState("done");
+    setTimeout(() => setRefreshState("idle"), 1200);
+  }
 
   // Non-admin (cashier) only ever sees the receipts from their current
   // open shift — reviewing past shifts/dates is admin-only. With no shift
@@ -55,13 +66,30 @@ export default function ReceiptsPage() {
               : "Open a shift to see its transactions"
         }
         action={
-          <button
-            onClick={toggleDarkMode}
-            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
-          >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshState === "loading"}
+              aria-label="Refresh receipts"
+              title="Refresh receipts"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white disabled:opacity-60 dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+            >
+              {refreshState === "loading" ? (
+                <span className="inline-block animate-spin"><RefreshIcon size={16} /></span>
+              ) : refreshState === "done" ? (
+                <span className="text-emerald-600 dark:text-emerald-400"><CheckIcon size={16} /></span>
+              ) : (
+                <RefreshIcon size={16} />
+              )}
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+            >
+              {darkMode ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+            </button>
+          </div>
         }
       />
 
@@ -118,7 +146,7 @@ export default function ReceiptsPage() {
                     {isAdmin ? ` · ${o.cashierName}` : ""}
                   </div>
                 </div>
-                <div className="text-sm font-bold text-coffee-900 dark:text-cream-50 shrink-0">
+                <div className="tabnum text-sm font-bold text-coffee-900 dark:text-cream-50 shrink-0">
                   {formatMoney(o.total, symbol)}
                 </div>
               </button>
