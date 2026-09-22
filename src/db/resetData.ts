@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { seedIfEmpty } from "./seed";
-import { pushAll, pushTables } from "./remoteSync";
+import { pushAll, pushTablesReplacing } from "./remoteSync";
 
 const MENU_TABLES = [
   "categories",
@@ -48,9 +48,10 @@ export async function resetMenuAndInventory(): Promise<void> {
     }
   );
   // Dexie's clear() doesn't fire the hooks that normally queue a sync push,
-  // so push the wipe explicitly — otherwise the next poll would pull the
-  // old data back from the server.
-  await pushTables(MENU_TABLES);
+  // so push the wipe explicitly — replacing, not merged, since a merge
+  // would fold the server's old rows right back into this now-empty local
+  // state and undo the wipe.
+  await pushTablesReplacing(MENU_TABLES);
 }
 
 /**

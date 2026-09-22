@@ -70,7 +70,124 @@ let hydrating = false;
 let hooksInstalled = false;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
+// Row ids deleted locally (per table) since the last successful push of
+// that table. A plain "push my current local array" would otherwise be
+// unable to tell "this device never had this row" apart from "this device
+// deleted this row" once it's merged against the server's copy below — both
+// just look like an id that's missing locally. Tracking deletions
+// explicitly lets the merge tell those apart and keep the delete instead of
+// silently resurrecting the row from the server.
+const pendingDeletes = new Map<string, Set<unknown>>();
+const PENDING_DELETES_KEY = "lakbai-pos-pending-deletes";
+
+function persistPendingDeletes(): void {
+  try {
+    const obj: Record<string, unknown[]> = {};
+    for (const [table, ids] of pendingDeletes) obj[table] = Array.from(ids);
+    localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(obj));
+  } catch {
+    // ignore (private browsing / storage disabled)
+  }
+}
+
+function loadPendingDeletes(): void {
+  try {
+    const raw = localStorage.getItem(PENDING_DELETES_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw) as Record<string, unknown[]>;
+    for (const [table, ids] of Object.entries(obj)) {
+      pendingDeletes.set(table, new Set(ids));
+    }
+  } catch {
+    // ignore
+  }
+}
+loadPendingDeletes();
+
+function markDeleted(tableName: string, id: unknown): void {
+  let set = pendingDeletes.get(tableName);
+  if (!set) {
+    set = new Set();
+    pendingDeletes.set(tableName, set);
+  }
+  set.add(id);
+  persistPendingDeletes();
+}
+
+async function fetchRemoteTable(name: string): Promise<unknown[] | null> {
+  try {
+    const res = await fetch(`${SYNC_URL}?k=${encodeURIComponent(name)}`);
+    if (!res.ok) return null;
+    const val = await res.json();
+    return Array.isArray(val) ? val : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pushes a table's current local rows, but first merges them against the
+ * server's current copy instead of blindly overwriting it — otherwise any
+ * device whose local copy has simply fallen a few seconds behind (a
+ * backgrounded/throttled browser tab is the common case) can push its stale
+ * snapshot and wipe out rows another device already synced in the
+ * meantime, even ones that have nothing to do with what this device is
+ * actually pushing. Rows only known locally win on id conflicts (this
+ * device's write is presumably the reason it's pushing); rows only known
+ * remotely are folded in so this push can't erase them; rows this device
+ * explicitly deleted (tracked in pendingDeletes) are kept out even if the
+ * server still has them.
+ */
 async function pushTable(name: string): Promise<boolean> {
+  if (LOCAL_ONLY_TABLES.has(name)) return true;
+  try {
+    const localRows = await db.table(name).toArray();
+    const remoteRows = await fetchRemoteTable(name);
+    let toSend: unknown[] = localRows;
+    if (remoteRows) {
+      const deletedIds = pendingDeletes.get(name);
+      const byId = new Map<unknown, unknown>();
+      for (const row of remoteRows) {
+        const id = (row as { id?: unknown })?.id;
+        if (deletedIds?.has(id)) continue;
+        byId.set(id, row);
+      }
+      for (const row of localRows) {
+        byId.set((row as { id?: unknown })?.id, row);
+      }
+      toSend = Array.from(byId.values());
+    }
+    const res = await fetch(SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: name, value: toSend }),
+    });
+    if (res.ok && pendingDeletes.has(name)) {
+      pendingDeletes.delete(name);
+      persistPendingDeletes();
+    }
+    return res.ok;
+  } catch {
+    // Offline, sync endpoint unavailable, or the request itself failed
+    // (timeout, dropped connection, payload rejected) — the local write
+    // already succeeded, it just hasn't reached the server yet. Reporting
+    // this as a failure (rather than silently swallowing it) is what lets
+    // pullAll below know not to overwrite this table with a stale
+    // server copy that doesn't have this write in it yet.
+    return false;
+  }
+}
+
+/**
+ * Pushes a table's current local rows as-is, replacing whatever the server
+ * has with no merge. Only for callers that just did a bulk wipe (Dexie's
+ * `clear()` doesn't fire hooks, so those rows were never tracked as
+ * pendingDeletes) and genuinely mean "this local state is now the entire
+ * truth, discard anything else the server has" — e.g. resetting the menu
+ * or a factory reset. Every other caller should use pushTable/pushTables
+ * so a routine push can't clobber rows another device already synced.
+ */
+async function pushTableReplacing(name: string): Promise<boolean> {
   if (LOCAL_ONLY_TABLES.has(name)) return true;
   try {
     const rows = await db.table(name).toArray();
@@ -81,12 +198,6 @@ async function pushTable(name: string): Promise<boolean> {
     });
     return res.ok;
   } catch {
-    // Offline, sync endpoint unavailable, or the request itself failed
-    // (timeout, dropped connection, payload rejected) — the local write
-    // already succeeded, it just hasn't reached the server yet. Reporting
-    // this as a failure (rather than silently swallowing it) is what lets
-    // pullAll below know not to overwrite this table with a stale
-    // server copy that doesn't have this write in it yet.
     return false;
   }
 }
@@ -175,8 +286,9 @@ export function installSyncHooks(): void {
     table.hook("updating", () => {
       markDirty();
     });
-    table.hook("deleting", () => {
+    table.hook("deleting", (primKey) => {
       markDirty();
+      if (!hydrating) markDeleted(table.name, primKey);
     });
   }
 }
@@ -245,21 +357,38 @@ export async function pullAll(): Promise<boolean> {
   }
 }
 
-/** Pushes every local table up as the initial shared baseline (first device ever to seed). */
+/**
+ * Publishes every local table as the new shared baseline, replacing
+ * whatever the server has — not merged. Used for the first device ever to
+ * seed a fresh install, and for factory reset, where the whole point is
+ * that this local state (just wiped and/or reseeded) becomes the entire
+ * truth, discarding anything else the server was holding.
+ */
 export async function pushAll(): Promise<void> {
-  await Promise.all(db.tables.map((t) => pushTable(t.name)));
+  await Promise.all(db.tables.map((t) => pushTableReplacing(t.name)));
 }
 
 /**
- * Pushes specific tables immediately. Needed after any write that bypasses
- * the creating/updating/deleting hooks — most notably `table.clear()`,
- * which Dexie deliberately does not fire hooks for, so a bulk wipe (like
- * the Settings "Reset Menu & Inventory" / "Factory Reset" actions) would
- * otherwise never reach the server and get silently overwritten by the
- * next poll pulling the old data back.
+ * Pushes specific tables immediately, merged against the server's current
+ * copy (see pushTable above). Needed after any write that bypasses the
+ * creating/updating/deleting hooks and their debounce — most notably a
+ * just-completed sale, which is only safe on this one device until it
+ * reaches the server.
  */
 export async function pushTables(names: string[]): Promise<void> {
   await Promise.all(names.map(pushTable));
+}
+
+/**
+ * Pushes specific tables immediately, replacing the server's copy with no
+ * merge. Only for a caller that just bulk-wiped those tables with
+ * `table.clear()` (which fires no hooks, so nothing was tracked as a
+ * pendingDelete) and genuinely means "this reduced local state is now the
+ * whole truth" — e.g. "Reset Menu & Inventory". A merged push here would
+ * fold the server's old rows right back in and undo the wipe.
+ */
+export async function pushTablesReplacing(names: string[]): Promise<void> {
+  await Promise.all(names.map(pushTableReplacing));
 }
 
 export function startPolling(): void {
