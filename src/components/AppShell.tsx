@@ -6,6 +6,7 @@ import { useShiftStore } from "../store/shiftStore";
 import { useSidebarStore } from "../store/sidebarStore";
 import { NAV_ITEMS } from "../lib/navItems";
 import { canAccess } from "../lib/permissions";
+import { useUpdateCheck } from "../hooks/useUpdateCheck";
 
 function NavLinks({
   onNavigate,
@@ -50,6 +51,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useSidebarStore((s) => s.collapsed);
   const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
   const navigate = useNavigate();
+  const updateAvailable = useUpdateCheck();
 
   function handleLogout() {
     logout();
@@ -153,7 +155,23 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="tablet:hidden flex items-center justify-between px-3 h-12 landscape:h-10 border-b border-coffee-100 bg-white safe-top safe-left safe-right shrink-0">
+        {updateAvailable && (
+          <div className="shrink-0 bg-accent text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 flex items-center justify-between gap-3 safe-left safe-right safe-top">
+            <span>A new version of the app is ready.</span>
+            <button
+              onClick={() => window.location.reload()}
+              className="shrink-0 underline decoration-2 underline-offset-2"
+            >
+              Refresh Now
+            </button>
+          </div>
+        )}
+        <header
+          className={clsx(
+            "tablet:hidden flex items-center justify-between px-3 h-12 landscape:h-10 border-b border-coffee-100 bg-white safe-left safe-right shrink-0",
+            !updateAvailable && "safe-top"
+          )}
+        >
           <button
             onClick={() => setDrawerOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-coffee-700 hover:bg-coffee-100"

@@ -29,3 +29,8 @@ dist-ssr
 # Python bytecode cache (generated when running .claude/skills/*/scripts/*.py)
 __pycache__/
 *.pyc
+
+# Regenerated fresh on every `npm run build` (see scripts/write-version.mjs) —
+# not meaningful to track, and dev mode works fine without it (the update
+# banner just stays inactive locally).
+/public/version.json
