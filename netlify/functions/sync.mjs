@@ -11,6 +11,36 @@ const CORS = {
 // holding that table's full current array, or the settings singleton
 // object). This mirrors the sync pattern already used in the sibling
 // LAKBAI apps (inventory, pickleball booking) rather than a bespoke schema.
+//
+// Every key is stored wrapped as { rev, data } — a monotonic revision
+// number plus the actual table array/object. This lets a client do an
+// optimistic-concurrency push: "write this, but only if the revision I
+// last read is still current" — so two devices pushing at nearly the same
+// moment can no longer silently clobber each other; the second one gets a
+// 409 with the now-current data and is expected to re-merge and retry (see
+// pushTable in src/db/remoteSync.ts). Without this, a client-side merge
+// alone still has a race window between its GET and its POST — normally
+// tiny, but it stretches right back open on a slow/flaky connection, which
+// is exactly the condition a small shop's wifi tends to produce.
+//
+// A key written before this revision system existed is a bare value (the
+// array/object itself, no { rev, data } wrapper) — read as if it were
+// { rev: 0, data: <that value> } so existing production data keeps working
+// and simply gets wrapped in the envelope on its next write.
+function unwrapEntry(raw) {
+  if (raw == null) return { rev: 0, data: null };
+  if (
+    raw &&
+    typeof raw === "object" &&
+    !Array.isArray(raw) &&
+    typeof raw.rev === "number" &&
+    Object.prototype.hasOwnProperty.call(raw, "data")
+  ) {
+    return { rev: raw.rev, data: raw.data };
+  }
+  return { rev: 0, data: raw };
+}
+
 export default async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
@@ -33,8 +63,8 @@ export default async (req) => {
       const { blobs } = await store.list();
       const entries = await Promise.all(
         blobs.map(async ({ key }) => {
-          const val = await store.get(key, { type: "json" });
-          return [key, val ?? null];
+          const raw = await store.get(key, { type: "json" });
+          return [key, unwrapEntry(raw)];
         })
       );
       return new Response(JSON.stringify(Object.fromEntries(entries)), { headers: CORS });
@@ -45,17 +75,28 @@ export default async (req) => {
       if (!key) {
         return new Response(JSON.stringify({ error: "k required" }), { status: 400, headers: CORS });
       }
-      const val = await store.get(key, { type: "json" });
-      return new Response(JSON.stringify(val ?? null), { headers: CORS });
+      const raw = await store.get(key, { type: "json" });
+      return new Response(JSON.stringify(unwrapEntry(raw)), { headers: CORS });
     }
 
     if (req.method === "POST") {
-      const { key, value } = await req.json();
+      const { key, value, expectedRev } = await req.json();
       if (!key) {
         return new Response(JSON.stringify({ error: "key required" }), { status: 400, headers: CORS });
       }
-      await store.setJSON(key, value);
-      return new Response(JSON.stringify({ ok: true }), { headers: CORS });
+      const current = unwrapEntry(await store.get(key, { type: "json" }));
+      if (typeof expectedRev === "number" && expectedRev !== current.rev) {
+        // Someone else wrote this key since the caller last read it — refuse
+        // the blind overwrite and hand back the current state so the caller
+        // can re-merge its local rows onto it and retry, instead of racing.
+        return new Response(
+          JSON.stringify({ conflict: true, rev: current.rev, data: current.data }),
+          { status: 409, headers: CORS }
+        );
+      }
+      const nextRev = current.rev + 1;
+      await store.setJSON(key, { rev: nextRev, data: value });
+      return new Response(JSON.stringify({ ok: true, rev: nextRev }), { headers: CORS });
     }
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });

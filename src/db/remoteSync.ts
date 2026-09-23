@@ -114,59 +114,98 @@ function markDeleted(tableName: string, id: unknown): void {
   persistPendingDeletes();
 }
 
-async function fetchRemoteTable(name: string): Promise<unknown[] | null> {
+// The server wraps every key as { rev, data } (see netlify/functions/sync.mjs)
+// so a push can be conditioned on "only write if the revision I read is
+// still current" — see pushTable below.
+type RemoteEntry = { rev: number; data: unknown[] | null };
+
+async function fetchRemoteEntry(name: string): Promise<RemoteEntry | null> {
   try {
     const res = await fetch(`${SYNC_URL}?k=${encodeURIComponent(name)}`);
     if (!res.ok) return null;
-    const val = await res.json();
-    return Array.isArray(val) ? val : null;
+    const entry = (await res.json()) as RemoteEntry;
+    return typeof entry?.rev === "number" ? entry : null;
   } catch {
     return null;
   }
 }
 
+// Rows only known locally win on id conflicts (this device's write is
+// presumably the reason it's pushing); rows only known remotely are folded
+// in so this push can't erase them; rows this device explicitly deleted
+// (tracked in pendingDeletes) are kept out even if the server still has
+// them.
+function mergeRows(name: string, localRows: unknown[], remoteRows: unknown[] | null): unknown[] {
+  if (!Array.isArray(remoteRows)) return localRows;
+  const deletedIds = pendingDeletes.get(name);
+  const byId = new Map<unknown, unknown>();
+  for (const row of remoteRows) {
+    const id = (row as { id?: unknown })?.id;
+    if (deletedIds?.has(id)) continue;
+    byId.set(id, row);
+  }
+  for (const row of localRows) {
+    byId.set((row as { id?: unknown })?.id, row);
+  }
+  return Array.from(byId.values());
+}
+
+// How many times to re-merge-and-retry a push that loses a revision race
+// before giving up for this cycle (it stays dirty and is retried on the
+// next poll regardless, so this just bounds how long one push attempt can
+// spend fighting a genuinely hot key).
+const MAX_PUSH_RETRIES = 3;
+
 /**
- * Pushes a table's current local rows, but first merges them against the
- * server's current copy instead of blindly overwriting it — otherwise any
- * device whose local copy has simply fallen a few seconds behind (a
- * backgrounded/throttled browser tab is the common case) can push its stale
- * snapshot and wipe out rows another device already synced in the
- * meantime, even ones that have nothing to do with what this device is
- * actually pushing. Rows only known locally win on id conflicts (this
- * device's write is presumably the reason it's pushing); rows only known
- * remotely are folded in so this push can't erase them; rows this device
- * explicitly deleted (tracked in pendingDeletes) are kept out even if the
- * server still has them.
+ * Pushes a table's current local rows, merged against the server's current
+ * copy instead of blindly overwriting it — otherwise any device whose local
+ * copy has simply fallen a few seconds behind (a backgrounded/throttled
+ * browser tab is the common case) can push its stale snapshot and wipe out
+ * rows another device already synced in the meantime, even ones that have
+ * nothing to do with what this device is actually pushing.
+ *
+ * The merge alone still has a race window between reading the server's
+ * current copy and writing the merged result back — normally tiny, but a
+ * slow or flaky connection (a small shop's wifi) can stretch that window
+ * back open. So the write is conditioned on the revision this device read
+ * (expectedRev): if another push landed in between, the server refuses it
+ * (409) and hands back its now-current state, which gets re-merged and
+ * retried instead of clobbering that other write.
  */
 async function pushTable(name: string): Promise<boolean> {
   if (LOCAL_ONLY_TABLES.has(name)) return true;
   try {
     const localRows = await db.table(name).toArray();
-    const remoteRows = await fetchRemoteTable(name);
-    let toSend: unknown[] = localRows;
-    if (remoteRows) {
-      const deletedIds = pendingDeletes.get(name);
-      const byId = new Map<unknown, unknown>();
-      for (const row of remoteRows) {
-        const id = (row as { id?: unknown })?.id;
-        if (deletedIds?.has(id)) continue;
-        byId.set(id, row);
+    let remote = await fetchRemoteEntry(name);
+
+    for (let attempt = 0; attempt <= MAX_PUSH_RETRIES; attempt++) {
+      const toSend = remote ? mergeRows(name, localRows, remote.data) : localRows;
+      const body = remote
+        ? { key: name, value: toSend, expectedRev: remote.rev }
+        : { key: name, value: toSend };
+      const res = await fetch(SYNC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        if (pendingDeletes.has(name)) {
+          pendingDeletes.delete(name);
+          persistPendingDeletes();
+        }
+        return true;
       }
-      for (const row of localRows) {
-        byId.set((row as { id?: unknown })?.id, row);
+
+      if (res.status === 409) {
+        const conflict = (await res.json()) as { rev: number; data: unknown[] | null };
+        remote = { rev: conflict.rev, data: conflict.data };
+        continue;
       }
-      toSend = Array.from(byId.values());
+
+      return false;
     }
-    const res = await fetch(SYNC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: name, value: toSend }),
-    });
-    if (res.ok && pendingDeletes.has(name)) {
-      pendingDeletes.delete(name);
-      persistPendingDeletes();
-    }
-    return res.ok;
+    return false;
   } catch {
     // Offline, sync endpoint unavailable, or the request itself failed
     // (timeout, dropped connection, payload rejected) — the local write
@@ -311,13 +350,13 @@ export async function pullAll(): Promise<boolean> {
   try {
     const res = await fetch(`${SYNC_URL}?all=1`);
     if (!res.ok) return false;
-    const remote = (await res.json()) as Record<string, unknown[] | null>;
+    const remote = (await res.json()) as Record<string, RemoteEntry | null>;
     const tableNames = new Set(db.tables.map((t) => t.name));
     const present = Object.keys(remote).filter(
       (k) =>
         tableNames.has(k) &&
         !LOCAL_ONLY_TABLES.has(k) &&
-        Array.isArray(remote[k]) &&
+        Array.isArray(remote[k]?.data) &&
         !failedPush.has(k)
     );
     if (present.length === 0) return false;
@@ -333,7 +372,7 @@ export async function pullAll(): Promise<boolean> {
     hydrating = true;
     try {
       for (const name of present) {
-        const rows = remote[name] as unknown[];
+        const rows = remote[name]!.data as unknown[];
         await db.transaction("rw", db.table(name), async () => {
           await db.table(name).clear();
           if (rows.length > 0) await db.table(name).bulkAdd(rows);
