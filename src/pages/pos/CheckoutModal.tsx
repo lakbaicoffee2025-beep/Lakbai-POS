@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useCartStore } from "../../store/cartStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useAuthStore } from "../../store/authStore";
 import { useShiftStore } from "../../store/shiftStore";
 import { computeOrderTotals } from "../../lib/cartMath";
 import { formatMoney } from "../../lib/format";
+import { suggestedCashAmounts } from "../../lib/cashSuggestions";
 import { Modal, Button } from "../../components/ui";
 import { db } from "../../db/db";
 import { newId } from "../../lib/id";
@@ -54,6 +55,10 @@ export default function CheckoutModal({
 
   const cashTenderedNum = parseFloat(cashTendered) || 0;
   const changeDue = method === "cash" ? Math.max(0, cashTenderedNum - totals.total) : 0;
+  const cashSuggestions = useMemo(
+    () => suggestedCashAmounts(totals.total),
+    [totals.total]
+  );
 
   const splitTotal = (parseFloat(splitCash) || 0) + (parseFloat(splitGcash) || 0);
   const canSubmit =
@@ -226,6 +231,39 @@ export default function CheckoutModal({
 
         {method === "cash" && (
           <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-coffee-500">Suggested Amount</label>
+              <span className="text-[11px] text-coffee-400">Tap, or type your own below</span>
+            </div>
+            <div className="flex gap-1.5 mb-3">
+              {cashSuggestions.map((amt, i) => {
+                const isExact = i === 0;
+                const change = amt - totals.total;
+                const selected = Math.abs(cashTenderedNum - amt) < 0.005;
+                return (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setCashTendered(amt.toFixed(2))}
+                    className={`flex-1 py-2 rounded-lg border flex flex-col items-center gap-0.5 ${
+                      selected
+                        ? "bg-accent border-accent text-white shadow-sm"
+                        : "border-coffee-200 text-coffee-700 dark:border-coffee-700 dark:text-coffee-200"
+                    }`}
+                  >
+                    <span className="tabnum text-sm font-bold">{formatMoney(amt, symbol)}</span>
+                    <span
+                      className={`tabnum text-[10px] font-semibold ${
+                        selected ? "text-white/85" : "text-coffee-400"
+                      }`}
+                    >
+                      {isExact ? "Exact" : `+${formatMoney(change, symbol)} chg`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <label className="text-xs font-medium text-coffee-500 mb-1 block">
               Cash Tendered
             </label>
