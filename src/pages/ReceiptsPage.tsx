@@ -3,7 +3,6 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
 import { db } from "../db/db";
 import { useAuthStore } from "../store/authStore";
-import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useDarkModeStore } from "../store/darkModeStore";
 import { pullAll } from "../db/remoteSync";
@@ -13,9 +12,16 @@ import { PageHeader, Card, Input, Badge, EmptyState } from "../components/ui";
 import ReceiptDetailModal from "../components/ReceiptDetailModal";
 import { SunIcon, MoonIcon, RefreshIcon, CheckIcon } from "../components/icons";
 
+function todayBounds(): [number, number] {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return [start.getTime(), end.getTime()];
+}
+
 export default function ReceiptsPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
-  const activeShift = useShiftStore((s) => s.activeShift);
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
   const isAdmin = currentUser.role === "admin";
   const darkMode = useDarkModeStore((s) => s.darkMode);
@@ -34,14 +40,24 @@ export default function ReceiptsPage() {
     setTimeout(() => setRefreshState("idle"), 1200);
   }
 
-  // Non-admin (cashier) only ever sees the receipts from their current
-  // open shift — reviewing past shifts/dates is admin-only. With no shift
-  // open there's nothing to scope to, so the list is simply empty.
+  // Non-admin (cashier) sees every one of their own transactions from
+  // today, regardless of which shift it was rung up under — scoping this
+  // to only the currently *active* shift (the old behavior) meant closing
+  // and reopening a shift mid-day, or simply being between shifts, made
+  // everything sold earlier today appear to vanish from the cashier's own
+  // screen, even though it was never actually lost (an admin, unscoped by
+  // shift, could always see it fine). Reviewing OTHER dates, or other
+  // cashiers' sales, is still admin-only.
   const orders = useLiveQuery(() => {
     if (isAdmin) return db.orders.orderBy("createdAt").reverse().toArray();
-    if (!activeShift) return Promise.resolve<Order[]>([]);
-    return db.orders.where("shiftId").equals(activeShift.id).reverse().sortBy("createdAt");
-  }, [isAdmin, activeShift?.id]);
+    const [start, end] = todayBounds();
+    return db.orders
+      .where("createdAt")
+      .between(start, end, true, true)
+      .filter((o) => o.cashierId === currentUser.id)
+      .reverse()
+      .sortBy("createdAt");
+  }, [isAdmin, currentUser.id]);
 
   const filtered = (orders ?? []).filter((o) => {
     if (dateFilter && format(o.createdAt, "yyyy-MM-dd") !== dateFilter) return false;
@@ -58,13 +74,7 @@ export default function ReceiptsPage() {
     <div className={`bg-cream-50 dark:bg-coffee-950 min-h-full ${darkMode ? "dark" : ""}`}>
       <PageHeader
         title="Receipts"
-        subtitle={
-          isAdmin
-            ? "All transactions"
-            : activeShift
-              ? "This shift's transactions"
-              : "Open a shift to see its transactions"
-        }
+        subtitle={isAdmin ? "All transactions" : "Today's transactions"}
         action={
           <div className="flex items-center gap-2">
             <button
@@ -118,9 +128,7 @@ export default function ReceiptsPage() {
                 ? "No receipts match."
                 : isAdmin
                   ? "No transactions yet."
-                  : activeShift
-                    ? "No transactions yet this shift."
-                    : "Open a shift to see its transactions here. Past shifts and other dates are visible to Admin only."
+                  : "No transactions yet today."
             }
           />
         ) : (
