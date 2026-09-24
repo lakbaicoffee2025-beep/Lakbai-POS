@@ -21,12 +21,19 @@ function countReason(type: InventoryCountType): string {
 
 /**
  * Records an inventory count — daily opening/closing, or an admin-run
- * actual/physical count taken any time — and reconciles stock to whatever
- * was physically counted (skipping ingredients whose count matches the
- * system already). Each reconciling adjustment is logged as a normal
- * inventory movement, tagged with a reason so it's flagged distinctly in
- * the Movement Log, and carries forward whatever notes were entered on
- * this count submission.
+ * actual/physical count taken any time.
+ *
+ * Only an Actual Count (admin-only, a real physical stock-take) is treated
+ * as authoritative and actually reconciles the live stock figure, logging
+ * a normal inventory movement for the adjustment. Opening/closing counts —
+ * routine, staff-taken, and much more prone to a scale/decimal/miscount
+ * error — are always recorded (with their variance) for the reconciliation
+ * report in the Movement Log, but never silently overwrite the
+ * sales-driven running stock: a bad closing count used to reset that
+ * number for every subsequent screen (out-of-stock flags, valuation,
+ * reorder alerts) until someone happened to notice and re-adjust it. An
+ * admin still sees every discrepancy either way and can act on it with an
+ * Actual Count when it's confirmed real.
  */
 export async function submitInventoryCount(
   type: InventoryCountType,
@@ -36,6 +43,7 @@ export async function submitInventoryCount(
   userName: string,
   notes?: string
 ): Promise<InventoryCount> {
+  const isAuthoritative = type === "actual";
   return db.transaction(
     "rw",
     [db.ingredients, db.inventoryMovements, db.inventoryCounts],
@@ -57,7 +65,7 @@ export async function submitInventoryCount(
           variance,
         });
 
-        if (Math.abs(variance) < 1e-9) continue;
+        if (Math.abs(variance) < 1e-9 || !isAuthoritative) continue;
 
         await db.ingredients.update(ingredientId, {
           stockQty: countedQty,

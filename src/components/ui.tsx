@@ -6,13 +6,31 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  sticky = true,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  /**
+   * Keeps the header (and whatever's in `action` — a refresh button, most
+   * often) pinned to the top of the page's scroll area instead of
+   * scrolling away with the content beneath it. On a page with enough
+   * content to scroll, an unpinned header simply disappears once you
+   * scroll down, which looks exactly like a missing/broken button until
+   * you scroll back up or reload. Defaults on; pages that stack their own
+   * sticky sub-nav directly under this header pass `false` here and wrap
+   * both together in one sticky container instead, so the two don't stack
+   * on top of each other.
+   */
+  sticky?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6 border-b border-coffee-100 bg-white dark:border-coffee-800 dark:bg-coffee-900">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 px-4 py-4 sm:px-6 border-b border-coffee-100 bg-white dark:border-coffee-800 dark:bg-coffee-900",
+        sticky && "sticky top-0 z-20"
+      )}
+    >
       <div className="min-w-0">
         <h1 className="font-display text-lg sm:text-xl text-coffee-900 truncate dark:text-cream-50">
           {title}

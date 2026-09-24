@@ -125,9 +125,21 @@ export default function DailyCountTab() {
           </div>
         </div>
         <p className="text-xs text-coffee-400">
-          Every ingredient is pre-filled with its current system stock — just correct the ones
-          that differ from what you physically count. Untouched rows are left as-is.
+          Every ingredient is pre-filled with its current system stock — just enter what you
+          physically count for the ones that differ. Untouched rows are left as-is.
         </p>
+        {type === "actual" ? (
+          <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+            This resets the system stock to exactly what you count — use it only for a real
+            physical stock-take.
+          </p>
+        ) : (
+          <p className="text-xs text-coffee-500 bg-coffee-50 rounded-lg px-3 py-2">
+            This just records what you counted for review — it won't change the system stock
+            figure. If it's off, it'll show up as a discrepancy in the Movement Log; an admin can
+            correct it with an Actual Count once confirmed.
+          </p>
+        )}
       </Card>
 
       <Card className="divide-y divide-coffee-100">
