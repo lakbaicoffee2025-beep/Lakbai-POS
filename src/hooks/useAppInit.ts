@@ -18,13 +18,21 @@ export function useAppInit() {
       // writes to the DB, so those writes queue up for sync too.
       installSyncHooks();
 
-      // Prefer whatever the other devices already have. If nothing comes
-      // back (first device ever, or the sync endpoint isn't reachable —
-      // e.g. local `vite` dev without Netlify Functions), fall back to
-      // local seeding exactly as before, then publish that seed as the
-      // shared baseline for any device that syncs in afterward.
-      const hydrated = await pullAll();
-      if (!hydrated) {
+      // Prefer whatever the other devices already have. Only fall back to
+      // local seeding — and publishing that seed as the new shared
+      // baseline — when the server was actually reached and confirmed to
+      // have nothing yet (a genuinely first-ever run, or local `vite` dev
+      // without Netlify Functions, where every pull consistently reports
+      // "empty"). A pull that merely *failed* (offline, a flaky request,
+      // an unreachable endpoint) must NOT take this path: if this
+      // device's own local storage also happens to be empty at that same
+      // moment (fresh browser, a new/reinstalled device, evicted storage),
+      // seeding demo data and pushing it as the baseline would silently
+      // overwrite every other device's real synced data with it — exactly
+      // what caused a shop's whole catalog and staff accounts to be wiped
+      // and replaced with the default demo seed.
+      const pullResult = await pullAll();
+      if (pullResult === "empty") {
         const didSeed = await seedIfEmpty();
         if (didSeed) await pushAll();
       }

@@ -332,8 +332,25 @@ export function installSyncHooks(): void {
   }
 }
 
+/**
+ * Result of a pull attempt. "hydrated" means local data now reflects the
+ * server. "empty" means the server was reached and genuinely has nothing
+ * stored yet (no blob keys at all) — the one case where it's safe for a
+ * caller to seed fresh data and publish it as the new shared baseline.
+ * "failed" covers everything else that kept us from confirming the
+ * server's state (offline, an unreachable/erroring endpoint, a table this
+ * device couldn't push first) — callers must NOT treat "failed" the same
+ * as "empty", since a device whose own local data also happens to be
+ * empty (fresh browser storage, a new device, a reinstall) would otherwise
+ * reseed demo data and push it as the new baseline, silently overwriting
+ * every other device's real synced data with it. This exact bug caused a
+ * shop's full product/inventory catalog and custom staff accounts to be
+ * wiped and replaced with the default demo seed.
+ */
+export type PullResult = "hydrated" | "empty" | "failed";
+
 /** Pulls every table's latest snapshot from the server and replaces local data with it. */
-export async function pullAll(): Promise<boolean> {
+export async function pullAll(): Promise<PullResult> {
   // Always push before pulling — otherwise a pull could clear()+bulkAdd()
   // a table right out from under a write that's still queued (this
   // session's own debounce window, or one left over from a session that
@@ -349,8 +366,15 @@ export async function pullAll(): Promise<boolean> {
   const failedPush = new Set([...failedLeftovers, ...failedNow]);
   try {
     const res = await fetch(`${SYNC_URL}?all=1`);
-    if (!res.ok) return false;
+    if (!res.ok) return "failed";
     const remote = (await res.json()) as Record<string, RemoteEntry | null>;
+    // A genuinely fresh server has no blob keys at all — this is the only
+    // signal trustworthy enough to treat as "confirmed empty" rather than
+    // "couldn't confirm". Once any key exists, a table simply not showing
+    // up in `present` (filtered out below) is ambiguous — it could mean
+    // this device's own push of it just failed — so that must never be
+    // read as "empty" either.
+    if (Object.keys(remote).length === 0) return "empty";
     const tableNames = new Set(db.tables.map((t) => t.name));
     const present = Object.keys(remote).filter(
       (k) =>
@@ -359,7 +383,7 @@ export async function pullAll(): Promise<boolean> {
         Array.isArray(remote[k]?.data) &&
         !failedPush.has(k)
     );
-    if (present.length === 0) return false;
+    if (present.length === 0) return "failed";
 
     // One transaction per table, not one giant transaction spanning every
     // table — a single multi-table transaction holds a write lock on ALL of
@@ -390,9 +414,9 @@ export async function pullAll(): Promise<boolean> {
       await useSettingsStore.getState().load();
     }
 
-    return true;
+    return "hydrated";
   } catch {
-    return false;
+    return "failed";
   }
 }
 
