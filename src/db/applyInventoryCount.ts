@@ -50,9 +50,12 @@ export async function submitInventoryCount(
     async () => {
       const lines: InventoryCountLine[] = [];
 
-      for (const [ingredientId, countedQty] of countedByIngredientId) {
+      for (const [ingredientId, rawCountedQty] of countedByIngredientId) {
         const ingredient = await db.ingredients.get(ingredientId);
         if (!ingredient) continue;
+        // Stock can't physically be negative — floor a mis-keyed negative
+        // count at 0 rather than letting it flow through as a real figure.
+        const countedQty = Math.max(0, rawCountedQty);
         const systemQty = ingredient.stockQty;
         const variance = countedQty - systemQty;
 

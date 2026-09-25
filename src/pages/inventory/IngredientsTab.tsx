@@ -165,10 +165,11 @@ export default function IngredientsTab() {
 
   async function handleSave() {
     if (!form.name.trim()) return;
+    const patch = { ...form, stockQty: Math.max(0, form.stockQty) };
     if (editingId) {
-      await db.ingredients.update(editingId, { ...form, updatedAt: Date.now() });
+      await db.ingredients.update(editingId, { ...patch, updatedAt: Date.now() });
     } else {
-      await db.ingredients.add({ ...form, id: newId(), updatedAt: Date.now() });
+      await db.ingredients.add({ ...patch, id: newId(), updatedAt: Date.now() });
     }
     setOpen(false);
   }

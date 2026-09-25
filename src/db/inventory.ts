@@ -51,7 +51,11 @@ export async function deductInventoryForOrder(
         if (qty <= 0) continue;
         const ingredient = await db.ingredients.get(ingredientId);
         if (!ingredient) continue;
-        const newQty = ingredient.stockQty - qty;
+        // Stock never goes below 0 — a recipe consuming more than what's on
+        // hand (a missed restock, an under-counted ingredient) shows up as
+        // "out of stock" from here on rather than an increasingly negative
+        // number that never means anything physical.
+        const newQty = Math.max(0, ingredient.stockQty - qty);
         await db.ingredients.update(ingredientId, {
           stockQty: newQty,
           updatedAt: Date.now(),
@@ -89,7 +93,9 @@ export async function adjustIngredientStock(
     async () => {
       const ingredient = await db.ingredients.get(ingredientId);
       if (!ingredient) throw new Error("Ingredient not found");
-      const newQty = ingredient.stockQty + qtyDelta;
+      // Floor at 0 — a manual removal/waste entry larger than what's on hand
+      // shouldn't leave stock negative.
+      const newQty = Math.max(0, ingredient.stockQty + qtyDelta);
       await db.ingredients.update(ingredientId, {
         stockQty: newQty,
         updatedAt: Date.now(),
