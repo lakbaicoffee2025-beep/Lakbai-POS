@@ -1,0 +1,171 @@
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { format } from "date-fns";
+import { db } from "../db/db";
+import { useAuthStore } from "../store/authStore";
+import { useSettingsStore } from "../store/settingsStore";
+import { useDarkModeStore } from "../store/darkModeStore";
+import { pullAll } from "../db/remoteSync";
+import { formatMoney } from "../lib/format";
+import type { Order } from "../types";
+import { PageHeader, Card, Input, Badge, EmptyState } from "../components/ui";
+import ReceiptDetailModal from "../components/ReceiptDetailModal";
+import { SunIcon, MoonIcon, RefreshIcon, CheckIcon } from "../components/icons";
+
+function todayBounds(): [number, number] {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return [start.getTime(), end.getTime()];
+}
+
+export default function ReceiptsPage() {
+  const currentUser = useAuthStore((s) => s.currentUser)!;
+  const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
+  const isAdmin = currentUser.role === "admin";
+  const darkMode = useDarkModeStore((s) => s.darkMode);
+  const toggleDarkMode = useDarkModeStore((s) => s.toggleDarkMode);
+
+  const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "done">("idle");
+
+  async function handleRefresh() {
+    if (refreshState === "loading") return;
+    setRefreshState("loading");
+    await pullAll();
+    setRefreshState("done");
+    setTimeout(() => setRefreshState("idle"), 1200);
+  }
+
+  // Non-admin (cashier) sees every one of their own transactions from
+  // today, regardless of which shift it was rung up under — scoping this
+  // to only the currently *active* shift (the old behavior) meant closing
+  // and reopening a shift mid-day, or simply being between shifts, made
+  // everything sold earlier today appear to vanish from the cashier's own
+  // screen, even though it was never actually lost (an admin, unscoped by
+  // shift, could always see it fine). Reviewing OTHER dates, or other
+  // cashiers' sales, is still admin-only.
+  const orders = useLiveQuery(() => {
+    if (isAdmin) return db.orders.orderBy("createdAt").reverse().toArray();
+    const [start, end] = todayBounds();
+    return db.orders
+      .where("createdAt")
+      .between(start, end, true, true)
+      .filter((o) => o.cashierId === currentUser.id)
+      .reverse()
+      .sortBy("createdAt");
+  }, [isAdmin, currentUser.id]);
+
+  const filtered = (orders ?? []).filter((o) => {
+    if (dateFilter && format(o.createdAt, "yyyy-MM-dd") !== dateFilter) return false;
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      String(o.orderNo).includes(q) ||
+      o.customerName?.toLowerCase().includes(q) ||
+      o.cashierName.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className={`bg-cream-50 dark:bg-coffee-950 min-h-full ${darkMode ? "dark" : ""}`}>
+      <PageHeader
+        title="Receipts"
+        subtitle={isAdmin ? "All transactions" : "Today's transactions"}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshState === "loading"}
+              aria-label="Refresh receipts"
+              title="Refresh receipts"
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white disabled:opacity-60 dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+            >
+              {refreshState === "loading" ? (
+                <span className="inline-block animate-spin"><RefreshIcon size={16} /></span>
+              ) : refreshState === "done" ? (
+                <span className="text-emerald-600 dark:text-emerald-400"><CheckIcon size={16} /></span>
+              ) : (
+                <RefreshIcon size={16} />
+              )}
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+            >
+              {darkMode ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+            </button>
+          </div>
+        }
+      />
+
+      <div className="p-4 max-w-2xl mx-auto space-y-3">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Search by customer, cashier, or order #…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1"
+          />
+          {isAdmin && (
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-auto"
+            />
+          )}
+        </div>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            text={
+              query || dateFilter
+                ? "No receipts match."
+                : isAdmin
+                  ? "No transactions yet."
+                  : "No transactions yet today."
+            }
+          />
+        ) : (
+          <Card className="divide-y divide-coffee-100 dark:divide-coffee-800">
+            {filtered.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => setViewOrder(o)}
+                className="w-full text-left flex items-center justify-between px-4 py-3 hover:bg-coffee-50 dark:hover:bg-coffee-800"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-coffee-900 dark:text-cream-50 flex items-center gap-2">
+                    Order #{o.orderNo}
+                    {o.status === "voided" && <Badge tone="danger">Voided</Badge>}
+                    {o.status === "refunded" && <Badge tone="warning">Refunded</Badge>}
+                    {o.status === "completed" && (o.refunds?.length ?? 0) > 0 && (
+                      <Badge tone="warning">Partial Refund</Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-coffee-400 truncate">
+                    {format(o.createdAt, "MMM d, h:mm a")}
+                    {o.customerName ? ` · ${o.customerName}` : ""}
+                    {isAdmin ? ` · ${o.cashierName}` : ""}
+                  </div>
+                </div>
+                <div className="tabnum text-sm font-bold text-coffee-900 dark:text-cream-50 shrink-0">
+                  {formatMoney(o.total, symbol)}
+                </div>
+              </button>
+            ))}
+          </Card>
+        )}
+      </div>
+
+      {viewOrder && (
+        <ReceiptDetailModal order={viewOrder} onClose={() => setViewOrder(null)} />
+      )}
+    </div>
+  );
+}
