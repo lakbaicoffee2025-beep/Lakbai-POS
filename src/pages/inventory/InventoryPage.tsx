@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "../../components/ui";
+import { RefreshButton } from "../../components/RefreshButton";
 import { useAuthStore } from "../../store/authStore";
 import StockDashboardTab from "./StockDashboardTab";
 import IngredientsTab from "./IngredientsTab";
@@ -32,7 +33,12 @@ export default function InventoryPage() {
   return (
     <div>
       <div className="sticky top-0 z-20">
-        <PageHeader title="Inventory" subtitle="Stock, purchase orders & suppliers" sticky={false} />
+        <PageHeader
+          title="Inventory"
+          subtitle="Stock, purchase orders & suppliers"
+          sticky={false}
+          action={<RefreshButton label="Refresh inventory" />}
+        />
         <div className="bg-white border-b border-coffee-100 px-4 flex gap-1 overflow-x-auto no-scrollbar">
           {TABS.map((t) => (
             <button

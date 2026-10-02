@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
 import type { StoreSettings } from "../types";
 import { PageHeader, Card, Button, Input } from "../components/ui";
+import { RefreshButton } from "../components/RefreshButton";
 import ImportCard from "./settings/ImportCard";
 import DangerZoneCard from "./settings/DangerZoneCard";
 
@@ -27,7 +28,11 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Store configuration" />
+      <PageHeader
+        title="Settings"
+        subtitle="Store configuration"
+        action={<RefreshButton label="Refresh settings" />}
+      />
       <div className="p-4 max-w-2xl mx-auto space-y-4">
         <Card className="p-4 space-y-3">
           <h3 className="text-sm font-bold text-coffee-800">Store Info</h3>

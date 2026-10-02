@@ -6,6 +6,7 @@ import { hashPin } from "../lib/hash";
 import { useAuthStore } from "../store/authStore";
 import type { Role, User } from "../types";
 import { PageHeader, Card, Button, Input, Modal, Select, Badge, EmptyState } from "../components/ui";
+import { RefreshButton } from "../components/RefreshButton";
 
 const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
@@ -86,7 +87,12 @@ export default function UsersPage() {
       <PageHeader
         title="Users"
         subtitle="Manage staff accounts & roles"
-        action={<Button onClick={openCreate}>+ New User</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <RefreshButton label="Refresh users" />
+            <Button onClick={openCreate}>+ New User</Button>
+          </div>
+        }
       />
 
       <div className="p-4 max-w-2xl mx-auto space-y-3">

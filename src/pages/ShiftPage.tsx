@@ -9,6 +9,7 @@ import { computeShiftSummary } from "../lib/shiftMath";
 import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
 import { PageHeader, Card, Button, Badge, EmptyState } from "../components/ui";
+import { RefreshButton } from "../components/RefreshButton";
 import ShiftReportView from "../components/ShiftReportView";
 import CloseShiftModal from "./CloseShiftModal";
 import PaidOutModal from "./PaidOutModal";
@@ -80,13 +81,16 @@ export default function ShiftPage() {
         title="Shift"
         subtitle="Cash count & shift reports"
         action={
-          <button
-            onClick={toggleDarkMode}
-            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
-          >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
+          <div className="flex items-center gap-2">
+            <RefreshButton label="Refresh shift" />
+            <button
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          </div>
         }
       />
 

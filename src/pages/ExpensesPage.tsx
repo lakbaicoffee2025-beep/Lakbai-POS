@@ -18,6 +18,7 @@ import { computeExpenseTotals } from "../lib/expenseMath";
 import { compressImage, readFileAsDataUrl } from "../lib/image";
 import type { ExpenseLineItem, CashReturnStatus, ExpenseReport, User } from "../types";
 import { PageHeader, Card, Button, Input, Select, Badge, EmptyState } from "../components/ui";
+import { RefreshButton } from "../components/RefreshButton";
 
 function todayStr(): string {
   return format(new Date(), "yyyy-MM-dd");
@@ -237,7 +238,11 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <PageHeader title="Expenses" subtitle="Cash/ATM received, itemized spending & change return" />
+      <PageHeader
+        title="Expenses"
+        subtitle="Cash/ATM received, itemized spending & change return"
+        action={<RefreshButton label="Refresh expenses" />}
+      />
 
       <div className="p-4 max-w-2xl mx-auto space-y-4">
         <Card className="p-4 space-y-3">

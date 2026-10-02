@@ -5,12 +5,12 @@ import { db } from "../db/db";
 import { useAuthStore } from "../store/authStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useDarkModeStore } from "../store/darkModeStore";
-import { pullAll } from "../db/remoteSync";
 import { formatMoney } from "../lib/format";
 import type { Order } from "../types";
 import { PageHeader, Card, Input, Badge, EmptyState } from "../components/ui";
 import ReceiptDetailModal from "../components/ReceiptDetailModal";
-import { SunIcon, MoonIcon, RefreshIcon, CheckIcon } from "../components/icons";
+import { RefreshButton } from "../components/RefreshButton";
+import { SunIcon, MoonIcon } from "../components/icons";
 
 function todayBounds(): [number, number] {
   const start = new Date();
@@ -30,15 +30,6 @@ export default function ReceiptsPage() {
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
-  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "done">("idle");
-
-  async function handleRefresh() {
-    if (refreshState === "loading") return;
-    setRefreshState("loading");
-    await pullAll();
-    setRefreshState("done");
-    setTimeout(() => setRefreshState("idle"), 1200);
-  }
 
   // Non-admin (cashier) sees every one of their own transactions from
   // today, regardless of which shift it was rung up under — scoping this
@@ -77,21 +68,7 @@ export default function ReceiptsPage() {
         subtitle={isAdmin ? "All transactions" : "Today's transactions"}
         action={
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshState === "loading"}
-              aria-label="Refresh receipts"
-              title="Refresh receipts"
-              className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white disabled:opacity-60 dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
-            >
-              {refreshState === "loading" ? (
-                <span className="inline-block animate-spin"><RefreshIcon size={16} /></span>
-              ) : refreshState === "done" ? (
-                <span className="text-emerald-600 dark:text-emerald-400"><CheckIcon size={16} /></span>
-              ) : (
-                <RefreshIcon size={16} />
-              )}
-            </button>
+            <RefreshButton label="Refresh receipts" />
             <button
               onClick={toggleDarkMode}
               aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}

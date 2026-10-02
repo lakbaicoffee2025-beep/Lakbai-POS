@@ -11,12 +11,11 @@ import {
   YAxis,
 } from "recharts";
 import { db } from "../db/db";
-import { pullAll } from "../db/remoteSync";
 import { formatMoney } from "../lib/format";
 import { useSettingsStore } from "../store/settingsStore";
 import { refundedQtyForLine, orderRefundedTotal, orderRefundedCashGcash } from "../lib/refundMath";
 import { PageHeader, Card, Select, EmptyState } from "../components/ui";
-import { RefreshIcon, CheckIcon } from "../components/icons";
+import { RefreshButton } from "../components/RefreshButton";
 import type { Order } from "../types";
 
 function todayStr(): string {
@@ -105,15 +104,6 @@ type StatsRangePreset = "today" | "7d" | "30d" | "custom";
 
 export default function DashboardPage() {
   const symbol = useSettingsStore((s) => s.settings?.currencySymbol) ?? "₱";
-
-  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "done">("idle");
-  async function handleRefresh() {
-    if (refreshState === "loading") return;
-    setRefreshState("loading");
-    await pullAll();
-    setRefreshState("done");
-    setTimeout(() => setRefreshState("idle"), 1200);
-  }
 
   // ---- Main stats, selectable date/range ----
   const [statsPreset, setStatsPreset] = useState<StatsRangePreset>("today");
@@ -288,23 +278,7 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle="Live sales overview"
-        action={
-          <button
-            onClick={handleRefresh}
-            disabled={refreshState === "loading"}
-            aria-label="Refresh reports"
-            title="Refresh reports"
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-coffee-200 text-coffee-600 bg-white disabled:opacity-60 dark:border-coffee-700 dark:text-coffee-200 dark:bg-coffee-800"
-          >
-            {refreshState === "loading" ? (
-              <span className="inline-block animate-spin"><RefreshIcon size={16} /></span>
-            ) : refreshState === "done" ? (
-              <span className="text-emerald-600 dark:text-emerald-400"><CheckIcon size={16} /></span>
-            ) : (
-              <RefreshIcon size={16} />
-            )}
-          </button>
-        }
+        action={<RefreshButton label="Refresh reports" />}
       />
       <div className="p-4 max-w-3xl mx-auto space-y-5">
         <div>
