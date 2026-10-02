@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { newId } from "../lib/id";
 import { computeExpenseTotals } from "../lib/expenseMath";
+import { pushTables } from "./remoteSync";
 import type { ExpenseReport, ExpenseLineItem, CashReturnStatus } from "../types";
 
 export interface SaveExpenseReportInput {
@@ -74,6 +75,18 @@ export async function saveExpenseReport(input: SaveExpenseReportInput): Promise<
       });
     }
 
+    return report;
+  }).then((report) => {
+    // Push this report right away instead of waiting for the usual 800ms
+    // debounce. Expenses are very often filed from a phone opening a link
+    // shared in Messenger/chat — that in-app browser can suspend or tear
+    // down its tab (and the storage/timers in it) the moment someone taps
+    // back to the chat, which is well inside the debounce window. Waiting
+    // on the debounce there means the entry only ever existed on that one
+    // phone and is gone for good. Fire-and-forget: normal sync still
+    // covers it if this is offline or fails, this just shortens the risk
+    // window to effectively zero regardless of which browser was used.
+    pushTables(["expenseReports", "expenses"]);
     return report;
   });
 }

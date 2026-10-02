@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { db } from "./db";
 import { newId } from "../lib/id";
+import { pushTables } from "./remoteSync";
 
 /** Category tag used to distinguish a Paid Out from any other expense row. */
 export const PAID_OUT_CATEGORY = "Paid Out";
@@ -32,4 +33,9 @@ export async function recordPaidOut(
     recordedByName: userName,
     createdAt: Date.now(),
   });
+  // Push immediately rather than waiting on the usual debounce — see the
+  // same reasoning in saveExpenseReport (src/db/expenseReports.ts): this is
+  // routinely filed from a Messenger-shared link's in-app browser, which
+  // can tear its tab down well inside that debounce window.
+  pushTables(["expenses"]);
 }
