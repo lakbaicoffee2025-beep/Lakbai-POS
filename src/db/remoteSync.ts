@@ -130,11 +130,31 @@ async function fetchRemoteEntry(name: string): Promise<RemoteEntry | null> {
   }
 }
 
+// A shift closing is a one-way transition — nothing in the app ever reopens
+// one. So a row-for-row "local wins" merge is actively wrong for it: Device
+// B can have a stale, still-"open" copy of a shift Device A just closed
+// (it closed moments ago and Device B simply hasn't re-pulled yet), and if
+// Device B then makes ANY unrelated write — even just opening its own new
+// shift — the whole "shifts" table gets marked dirty and pushed, carrying
+// that stale "open" snapshot along and silently reverting Device A's close
+// right back to open on the server. Once that happens, the cashier's app
+// never shows the "Start Your Shift" screen again (it still sees an
+// "active" shift), and every sale rung up afterward keeps posting against
+// that old, never-truly-closed shift instead of a new one. Whichever side
+// says "closed" always wins for a shift row, regardless of which side is
+// local vs. remote, closing out this race entirely.
+function preferShiftRow(remoteRow: unknown, localRow: unknown): unknown {
+  const remoteStatus = (remoteRow as { status?: string } | undefined)?.status;
+  const localStatus = (localRow as { status?: string } | undefined)?.status;
+  if (remoteStatus === "closed" && localStatus !== "closed") return remoteRow;
+  return localRow;
+}
+
 // Rows only known locally win on id conflicts (this device's write is
 // presumably the reason it's pushing); rows only known remotely are folded
 // in so this push can't erase them; rows this device explicitly deleted
 // (tracked in pendingDeletes) are kept out even if the server still has
-// them.
+// them. "shifts" is a special case — see preferShiftRow above.
 function mergeRows(name: string, localRows: unknown[], remoteRows: unknown[] | null): unknown[] {
   if (!Array.isArray(remoteRows)) return localRows;
   const deletedIds = pendingDeletes.get(name);
@@ -145,7 +165,8 @@ function mergeRows(name: string, localRows: unknown[], remoteRows: unknown[] | n
     byId.set(id, row);
   }
   for (const row of localRows) {
-    byId.set((row as { id?: unknown })?.id, row);
+    const id = (row as { id?: unknown })?.id;
+    byId.set(id, name === "shifts" ? preferShiftRow(byId.get(id), row) : row);
   }
   return Array.from(byId.values());
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { db } from "../db/db";
 import { newId } from "../lib/id";
+import { pushTables } from "../db/remoteSync";
 import type { Shift } from "../types";
 
 interface ShiftState {
@@ -41,6 +42,11 @@ export const useShiftStore = create<ShiftState>((set) => ({
     };
     await db.shifts.add(shift);
     set({ activeShift: shift });
+    // Push right away instead of waiting on the usual debounce — another
+    // device opening/closing its own shift around the same time would
+    // otherwise push a "shifts" snapshot that doesn't have this one in it
+    // yet, and the regular merge can't invent a row it's never seen.
+    pushTables(["shifts"]);
     return shift;
   },
   closeShift: async (shiftId, data) => {
@@ -59,6 +65,12 @@ export const useShiftStore = create<ShiftState>((set) => ({
     });
     await db.draftCarts.delete(shiftId);
     set({ activeShift: null });
+    // Push immediately rather than waiting on the debounce — shortens the
+    // window where another device could still push a stale "open" copy of
+    // this exact shift before this close reaches the server. The merge fix
+    // in remoteSync.ts (closed always beats open) is the real safety net;
+    // this just makes a revert less likely to happen in the first place.
+    pushTables(["shifts"]);
   },
   clear: () => set({ activeShift: null }),
 }));

@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { db } from "../../db/db";
 import { formatMoney } from "../../lib/format";
 import { useSettingsStore } from "../../store/settingsStore";
-import { adminUpdateShift, adminDeleteShift } from "../../db/shiftAdmin";
+import { adminUpdateShift, adminDeleteShift, adminForceCloseShift } from "../../db/shiftAdmin";
 import { Card, Button, Input, EmptyState, Modal } from "../../components/ui";
 import ShiftReportView from "../../components/ShiftReportView";
 import type { Shift } from "../../types";
@@ -123,16 +123,35 @@ function EditShiftModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isOpen = shift.status === "open";
+
   async function handleSave() {
+    if (
+      isOpen &&
+      !confirm(
+        `Force-close ${shift.cashierName}'s shift? Use this when a cashier's own Close Shift isn't taking — e.g. it was closed on their device but still shows open here. This marks it closed immediately for everyone.`
+      )
+    ) {
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await adminUpdateShift(shift.id, {
-        startingCash: parseFloat(startingCash) || 0,
-        countedCash: parseFloat(countedCash) || 0,
-        countedGcash: parseFloat(countedGcash) || 0,
-        notes: notes || undefined,
-      });
+      if (isOpen) {
+        await adminForceCloseShift(shift.id, {
+          startingCash: parseFloat(startingCash) || 0,
+          countedCash: parseFloat(countedCash) || 0,
+          countedGcash: parseFloat(countedGcash) || 0,
+          notes: notes || undefined,
+        });
+      } else {
+        await adminUpdateShift(shift.id, {
+          startingCash: parseFloat(startingCash) || 0,
+          countedCash: parseFloat(countedCash) || 0,
+          countedGcash: parseFloat(countedGcash) || 0,
+          notes: notes || undefined,
+        });
+      }
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save changes");
@@ -145,19 +164,27 @@ function EditShiftModal({
     <Modal
       open
       onClose={onClose}
-      title={`Edit Shift · ${shift.cashierName}`}
+      title={`${isOpen ? "Close" : "Edit"} Shift · ${shift.cashierName}`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button disabled={submitting} onClick={handleSave}>
-            {submitting ? "Saving…" : "Save Changes"}
+            {submitting ? "Saving…" : isOpen ? "Force-Close Shift" : "Save Changes"}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
+        {isOpen && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            This shift still shows "open" — use this if the cashier already closed it on their
+            own device and it isn't taking. Enter what was actually counted in the drawer; the
+            expected amounts will be computed from this shift's real sales and expenses.
+          </p>
+        )}
+
         <div>
           <label className="text-xs text-coffee-400 mb-1 block">
             Starting Cash ({symbol})
@@ -170,36 +197,30 @@ function EditShiftModal({
           />
         </div>
 
-        {shift.status === "closed" ? (
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-xs text-coffee-400 mb-1 block">
-                Counted Cash ({symbol})
-              </label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={countedCash}
-                onChange={(e) => setCountedCash(e.target.value)}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-coffee-400 mb-1 block">
-                Counted GCash ({symbol})
-              </label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={countedGcash}
-                onChange={(e) => setCountedGcash(e.target.value)}
-              />
-            </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-coffee-400 mb-1 block">
+              Counted Cash ({symbol})
+            </label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              value={countedCash}
+              onChange={(e) => setCountedCash(e.target.value)}
+            />
           </div>
-        ) : (
-          <p className="text-xs text-coffee-400">
-            This shift is still open — counted cash/GCash aren't recorded until it's closed.
-          </p>
-        )}
+          <div className="flex-1">
+            <label className="text-xs text-coffee-400 mb-1 block">
+              Counted GCash ({symbol})
+            </label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              value={countedGcash}
+              onChange={(e) => setCountedGcash(e.target.value)}
+            />
+          </div>
+        </div>
 
         <div>
           <label className="text-xs text-coffee-400 mb-1 block">Notes</label>
@@ -211,12 +232,10 @@ function EditShiftModal({
           />
         </div>
 
-        {shift.status === "closed" && (
-          <p className="text-xs text-coffee-400">
-            Expected cash/GCash and the variance shown in reports will be recalculated from this
-            shift's actual sales and expenses.
-          </p>
-        )}
+        <p className="text-xs text-coffee-400">
+          Expected cash/GCash and the variance shown in reports will be recalculated from this
+          shift's actual sales and expenses.
+        </p>
 
         {error && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
