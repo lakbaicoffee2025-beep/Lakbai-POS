@@ -1,0 +1,18 @@
+{
+  "name": "LAKBAI Coffee POS",
+  "short_name": "LAKBAI POS",
+  "description": "Point of Sale & Inventory Management for LAKBAI Coffee",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5ead6",
+  "theme_color": "#3c2415",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
