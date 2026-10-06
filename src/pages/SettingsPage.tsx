@@ -4,6 +4,7 @@ import type { StoreSettings } from "../types";
 import { PageHeader, Card, Button, Input } from "../components/ui";
 import { RefreshButton } from "../components/RefreshButton";
 import ImportCard from "./settings/ImportCard";
+import BackupsCard from "./settings/BackupsCard";
 import DangerZoneCard from "./settings/DangerZoneCard";
 
 export default function SettingsPage() {
@@ -164,6 +165,7 @@ export default function SettingsPage() {
         </Button>
 
         <ImportCard />
+        <BackupsCard />
         <DangerZoneCard />
       </div>
     </div>
