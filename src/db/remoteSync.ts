@@ -15,7 +15,17 @@ import { useSettingsStore } from "../store/settingsStore";
 
 const SYNC_URL = "/api/sync";
 const PUSH_DEBOUNCE_MS = 800;
-const POLL_INTERVAL_MS = 8000;
+// Every poll fetches the *entire* dataset (?all=1), so this interval drives
+// hosting cost directly — it used to be 8s, which on a hosting plan that
+// meters bandwidth (Netlify's credits, for one) adds up fast: a handful of
+// registers left open all day, each re-downloading the whole dataset every
+// 8 seconds, easily runs into real money for what a small shop actually
+// needs (staff don't need another register's changes to show up within
+// single-digit seconds). Writes that matter for correctness — a sale, an
+// expense, a shift close — already push immediately regardless of this
+// interval (see pushTables calls elsewhere), so lengthening this only
+// delays seeing *other devices'* changes, not posting your own.
+const POLL_INTERVAL_MS = 45000;
 
 // Device-local safety-net data that should never leave this browser — e.g.
 // the in-progress cart autosave, which only exists so an accidental reload
@@ -475,8 +485,29 @@ export async function pushTablesReplacing(names: string[]): Promise<void> {
   await Promise.all(names.map(pushTableReplacing));
 }
 
+let visibilityHandlerInstalled = false;
+
 export function startPolling(): void {
-  if (pollTimer) return;
+  if (!visibilityHandlerInstalled) {
+    visibilityHandlerInstalled = true;
+    // A backgrounded tab (screen off, switched app, tablet left on
+    // overnight) has no one watching it, so polling it on the usual
+    // interval is pure wasted bandwidth/cost — pause entirely while hidden,
+    // and catch up with one immediate pull the moment it's looked at again
+    // instead of waiting out the rest of the interval.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      } else if (!pollTimer) {
+        pullAll();
+        pollTimer = setInterval(() => pullAll(), POLL_INTERVAL_MS);
+      }
+    });
+  }
+  if (pollTimer || document.visibilityState === "hidden") return;
   pollTimer = setInterval(() => {
     pullAll();
   }, POLL_INTERVAL_MS);
