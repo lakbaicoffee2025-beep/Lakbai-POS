@@ -340,6 +340,16 @@ function scheduleFlush(): void {
   }, PUSH_DEBOUNCE_MS);
 }
 
+// When each table was last written to *locally*, regardless of whether
+// that write has since been pushed/flushed. dirtyTables alone isn't enough
+// to protect a pull's hydration: a write's own 800ms debounce can flush
+// and clear it (successfully reaching the server) well before a slow pull
+// — one already in flight, fetched *before* that write happened — finally
+// resolves and applies its now-stale snapshot. Checking "still dirty" at
+// that point says nothing, since it's already been flushed; what matters
+// is whether any local write happened after this specific pull started.
+const lastLocalWriteAt = new Map<string, number>();
+
 export function installSyncHooks(): void {
   if (hooksInstalled) return;
   hooksInstalled = true;
@@ -347,6 +357,7 @@ export function installSyncHooks(): void {
     if (LOCAL_ONLY_TABLES.has(table.name)) continue;
     const markDirty = () => {
       if (hydrating) return;
+      lastLocalWriteAt.set(table.name, Date.now());
       dirtyTables.add(table.name);
       scheduleFlush();
     };
@@ -396,6 +407,12 @@ export async function pullAll(): Promise<PullResult> {
   const failedNow = await flushNow();
   const failedPush = new Set([...failedLeftovers, ...failedNow]);
   try {
+    // Marks the point this pull's snapshot is "as of" — any local write
+    // timestamped after this, for a given table, happened during or after
+    // this fetch and isn't reflected in what it's about to return, however
+    // quickly that write's own debounce happens to flush and clear its
+    // dirty flag in the meantime.
+    const pullStartedAt = Date.now();
     const res = await fetch(`${SYNC_URL}?all=1`);
     if (!res.ok) return "failed";
     const remote = (await res.json()) as Record<string, RemoteEntry | null>;
@@ -427,8 +444,25 @@ export async function pullAll(): Promise<PullResult> {
     hydrating = true;
     try {
       for (const name of present) {
+        // The flush above only covers writes that existed *before* the
+        // `fetch` a few lines up — it says nothing about a write that lands
+        // during that fetch's round trip (slower on a weak connection, so
+        // more likely there, not less). Without this check, a report saved
+        // in that exact window gets destroyed: clear() removes it from
+        // local storage entirely, bulkAdd() restores only the older
+        // snapshot that was fetched before it existed. Checking
+        // dirtyTables alone isn't sufficient here — that write's own
+        // 800ms debounce can flush and clear it, successfully reaching the
+        // server, well before this slower pull resolves and reaches this
+        // point, making it look "clean" even though it happened after this
+        // pull's snapshot was taken. Comparing against the actual write
+        // timestamp catches that case too; a table written to after this
+        // pull started stays untouched this round and the next pull
+        // (which fetches a fresh, current snapshot) reconciles it.
+        if ((lastLocalWriteAt.get(name) ?? 0) > pullStartedAt) continue;
         const rows = remote[name]!.data as unknown[];
         await db.transaction("rw", db.table(name), async () => {
+          if ((lastLocalWriteAt.get(name) ?? 0) > pullStartedAt) return;
           await db.table(name).clear();
           if (rows.length > 0) await db.table(name).bulkAdd(rows);
         });
