@@ -10,6 +10,7 @@ import {
   markReportsCarriedForward,
   clearOldExpensePhotos,
 } from "../db/expenseReports";
+import { repairMissingExpenseReports, type RepairedReport } from "../db/repairExpenseReports";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
 import { useSettingsStore } from "../store/settingsStore";
@@ -58,6 +59,9 @@ export default function ExpensesPage() {
   const [customCleanupDays, setCustomCleanupDays] = useState("30");
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState<RepairedReport[] | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
 
   const reports = useLiveQuery(
     () => db.expenseReports.orderBy("createdAt").reverse().limit(30).toArray(),
@@ -233,6 +237,20 @@ export default function ExpensesPage() {
       );
     } finally {
       setCleaningUp(false);
+    }
+  }
+
+  async function handleRepairReports() {
+    setRepairing(true);
+    setRepairError(null);
+    setRepairResult(null);
+    try {
+      const { reports: fixed } = await repairMissingExpenseReports();
+      setRepairResult(fixed);
+    } catch (e) {
+      setRepairError(e instanceof Error ? e.message : "Repair failed");
+    } finally {
+      setRepairing(false);
     }
   }
 
@@ -469,6 +487,50 @@ export default function ExpensesPage() {
             {cleanupResult && (
               <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                 {cleanupResult}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {currentUser.role === "admin" && (
+          <Card className="p-4 space-y-3 border-amber-200">
+            <div>
+              <h3 className="text-sm font-bold text-coffee-800">Repair Missing Reports</h3>
+              <p className="text-xs text-coffee-400 mt-0.5">
+                A past sync bug (now fixed) could leave a submitted report's individual expense
+                lines saved — visible under Reports → Expenses → All Entries — while its summary
+                card never showed up here under Report History. This finds any of those and
+                rebuilds the missing report from its surviving line items. Cash Received/ATM
+                Withdrawal weren't stored on the line items themselves, so rebuilt reports start
+                those at 0 — re-enter the real amount via Edit afterward. Safe to run more than
+                once; it only creates what's actually missing.
+              </p>
+            </div>
+            <Button variant="secondary" disabled={repairing} onClick={handleRepairReports}>
+              {repairing ? "Checking…" : "Find & Restore Missing Reports"}
+            </Button>
+            {repairError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {repairError}
+              </div>
+            )}
+            {repairResult && (
+              <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 space-y-1">
+                {repairResult.length === 0 ? (
+                  <div>Nothing missing — every expense line has its report.</div>
+                ) : (
+                  <>
+                    <div>
+                      Restored {repairResult.length} report{repairResult.length === 1 ? "" : "s"}:
+                    </div>
+                    {repairResult.map((r) => (
+                      <div key={r.reportId}>
+                        {r.date} · {r.staffName} · {r.itemCount} item
+                        {r.itemCount === 1 ? "" : "s"} · {formatMoney(r.total, symbol)}
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </Card>
