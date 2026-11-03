@@ -160,7 +160,14 @@ export default function ExpensesPage() {
   async function handlePhoto(id: string, file: File | undefined) {
     if (!file) return;
     const raw = await readFileAsDataUrl(file);
-    const compressed = await compressImage(raw, 1000, 0.82);
+    // Smaller/lower-quality than before (was 1000px/0.82) — a receipt only
+    // needs to stay legible, and a report with several photos attached can
+    // otherwise embed a megabyte-plus of image data in one record, which
+    // on a phone that's low on storage is enough on its own to make the
+    // save throw (now surfaced instead of silently failing, see
+    // handleSubmit) and is also just slower to push over a weak
+    // connection either way.
+    const compressed = await compressImage(raw, 700, 0.6);
     updateItem(id, { photoDataUrl: compressed });
   }
 
@@ -210,6 +217,24 @@ export default function ExpensesPage() {
         await markReportsCarriedForward(appliedCarryoverReportIds);
       }
       resetForm();
+    } catch (e) {
+      // Without this, any failure here — most plausibly running out of
+      // local storage quota on a phone that's low on space, since a report
+      // with several receipt photos attached can embed a few hundred KB to
+      // over a megabyte of image data — was completely silent: no error
+      // shown, the form left exactly as the staff member typed it, nothing
+      // saved, with no indication anything went wrong at all. That silent
+      // failure is indistinguishable from "it just didn't save" and was
+      // reported as exactly that, repeatedly, by a staff member with no
+      // way to know what actually happened. The draft is still safe either
+      // way — the autosave above keeps it until this succeeds.
+      const message =
+        e instanceof DOMException && e.name === "QuotaExceededError"
+          ? "Couldn't save — this device is out of storage space. Try removing a photo from this report, or free up space on the phone, then save again."
+          : e instanceof Error
+            ? `Couldn't save: ${e.message}`
+            : "Couldn't save. Please try again.";
+      setError(message);
     } finally {
       setSubmitting(false);
     }

@@ -40,6 +40,7 @@ export default function DailyCountTab() {
   const [notes, setNotes] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [viewCount, setViewCount] = useState<InventoryCount | null>(null);
 
   const editedCount = useMemo(
@@ -85,6 +86,7 @@ export default function DailyCountTab() {
 
   async function handleSubmit() {
     if (!ingredients || ingredients.length === 0) return;
+    setError(null);
     setSubmitting(true);
     try {
       const map = new Map<string, number>();
@@ -97,6 +99,8 @@ export default function DailyCountTab() {
       setValues({});
       setNotes("");
       await db.inventoryCountDrafts.delete(currentUser.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not submit the count. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -180,6 +184,11 @@ export default function DailyCountTab() {
             className="w-full rounded-lg border border-coffee-200 px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           />
         </div>
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </div>
+        )}
         <Button
           className="w-full"
           size="lg"

@@ -82,6 +82,8 @@ export default function SpoilageTab() {
     try {
       const raw = await readFileAsDataUrl(file);
       setPhoto(await compressImage(raw));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not process the photo. Please try again.");
     } finally {
       setPhotoBusy(false);
     }
@@ -115,6 +117,8 @@ export default function SpoilageTab() {
       setNotes("");
       setPhoto(null);
       await db.spoilageDrafts.delete(currentUser.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not log the spoilage. Please try again.");
     } finally {
       setSubmitting(false);
     }

@@ -58,6 +58,7 @@ export default function IngredientsTab() {
   const [bulkReorderLevel, setBulkReorderLevel] = useState("0");
   const [bulkSupplierId, setBulkSupplierId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const filteredIngredients = (ingredients ?? []).filter((i) =>
     i.name.toLowerCase().includes(query.toLowerCase())
@@ -98,11 +99,14 @@ export default function IngredientsTab() {
     ) {
       return;
     }
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.ingredients.bulkDelete(Array.from(selectedIds));
       setSelectedIds(new Set());
       setSelectMode(false);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "Could not delete the selected ingredients. Please try again.");
     } finally {
       setBulkBusy(false);
     }
@@ -111,6 +115,7 @@ export default function IngredientsTab() {
   async function handleBulkReorderLevel() {
     const level = parseFloat(bulkReorderLevel);
     if (!Number.isFinite(level) || level < 0 || selectedIds.size === 0) return;
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.ingredients.bulkUpdate(
@@ -122,6 +127,8 @@ export default function IngredientsTab() {
       setSelectedIds(new Set());
       setSelectMode(false);
       setBulkAction(null);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "Could not update the reorder level. Please try again.");
     } finally {
       setBulkBusy(false);
     }
@@ -129,6 +136,7 @@ export default function IngredientsTab() {
 
   async function handleBulkSupplier() {
     if (!bulkSupplierId || selectedIds.size === 0) return;
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.ingredients.bulkUpdate(
@@ -140,6 +148,8 @@ export default function IngredientsTab() {
       setSelectedIds(new Set());
       setSelectMode(false);
       setBulkAction(null);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "Could not assign the supplier. Please try again.");
     } finally {
       setBulkBusy(false);
     }
@@ -254,6 +264,11 @@ export default function IngredientsTab() {
               Delete Selected
             </Button>
           </div>
+          {bulkError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {bulkError}
+            </div>
+          )}
         </Card>
       )}
 
@@ -454,6 +469,11 @@ export default function IngredientsTab() {
           <p className="text-xs text-coffee-400">
             Overwrites the reorder level on all {selectedIds.size} selected ingredient(s).
           </p>
+          {bulkError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {bulkError}
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -479,6 +499,11 @@ export default function IngredientsTab() {
           <p className="text-xs text-coffee-400">
             Sets the default supplier on all {selectedIds.size} selected ingredient(s).
           </p>
+          {bulkError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {bulkError}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

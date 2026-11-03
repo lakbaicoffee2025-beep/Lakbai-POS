@@ -43,6 +43,7 @@ export default function ProductsTab() {
   const [bulkAction, setBulkAction] = useState<"category" | null>(null);
   const [bulkCategoryId, setBulkCategoryId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const filteredProducts = (products ?? []).filter((p) => {
     if (activeCat !== "all" && p.categoryId !== activeCat) return false;
@@ -74,11 +75,14 @@ export default function ProductsTab() {
     ) {
       return;
     }
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.products.bulkDelete(Array.from(selectedIds));
       setSelectedIds(new Set());
       setSelectMode(false);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "Could not delete the selected products. Please try again.");
     } finally {
       setBulkBusy(false);
     }
@@ -86,6 +90,7 @@ export default function ProductsTab() {
 
   async function handleBulkShowHide(active: boolean) {
     if (selectedIds.size === 0) return;
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.products.bulkUpdate(
@@ -93,6 +98,12 @@ export default function ProductsTab() {
       );
       setSelectedIds(new Set());
       setSelectMode(false);
+    } catch (e) {
+      setBulkError(
+        e instanceof Error
+          ? e.message
+          : `Could not ${active ? "show" : "hide"} the selected products. Please try again.`
+      );
     } finally {
       setBulkBusy(false);
     }
@@ -100,6 +111,7 @@ export default function ProductsTab() {
 
   async function handleBulkCategory() {
     if (!bulkCategoryId || selectedIds.size === 0) return;
+    setBulkError(null);
     setBulkBusy(true);
     try {
       await db.products.bulkUpdate(
@@ -108,6 +120,8 @@ export default function ProductsTab() {
       setSelectedIds(new Set());
       setSelectMode(false);
       setBulkAction(null);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "Could not change the category. Please try again.");
     } finally {
       setBulkBusy(false);
     }
@@ -259,6 +273,11 @@ export default function ProductsTab() {
               Delete Selected
             </Button>
           </div>
+          {bulkError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {bulkError}
+            </div>
+          )}
         </Card>
       )}
 
@@ -459,6 +478,11 @@ export default function ProductsTab() {
           <p className="text-xs text-coffee-400">
             Moves all {selectedIds.size} selected product(s) into this category.
           </p>
+          {bulkError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {bulkError}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

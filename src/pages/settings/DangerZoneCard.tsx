@@ -20,11 +20,17 @@ function ConfirmAction({
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
+    setError(null);
     setBusy(true);
     try {
       await onConfirm();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : `Could not complete "${label}". Please try again.`
+      );
     } finally {
       setBusy(false);
       setOpen(false);
@@ -37,7 +43,14 @@ function ConfirmAction({
       <div className="text-sm font-semibold text-red-800">{label}</div>
       <p className="text-xs text-red-700">{description}</p>
       {!open ? (
-        <Button variant="danger" size="sm" onClick={() => setOpen(true)}>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={() => {
+            setError(null);
+            setOpen(true);
+          }}
+        >
           {label}
         </Button>
       ) : (
@@ -71,6 +84,11 @@ function ConfirmAction({
               {busy ? "Working…" : confirmButtonLabel}
             </Button>
           </div>
+        </div>
+      )}
+      {error && (
+        <div className="text-sm text-red-600 bg-white border border-red-200 rounded-lg px-3 py-2">
+          {error}
         </div>
       )}
     </div>

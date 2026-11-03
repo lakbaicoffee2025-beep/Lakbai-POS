@@ -86,6 +86,8 @@ export default function RestockTab() {
       setValues({});
       setNote("");
       await db.restockDrafts.delete(currentUser.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not restock the ingredients. Please try again.");
     } finally {
       setSubmitting(false);
     }

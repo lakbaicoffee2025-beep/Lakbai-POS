@@ -34,6 +34,8 @@ export default function PaidOutModal({
     try {
       await recordPaidOut(shiftId, description.trim(), amt, currentUser.id, currentUser.name);
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not record the paid out. Please try again.");
     } finally {
       setSubmitting(false);
     }
