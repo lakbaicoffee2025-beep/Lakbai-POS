@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { seedIfEmpty } from "../db/seed";
 import { installSyncHooks, installBeaconFlushOnHide, pullAll, startPolling } from "../db/remoteSync";
+import { requestPersistentStorage } from "../lib/persistentStorage";
 import { useSettingsStore } from "../store/settingsStore";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
@@ -22,6 +23,11 @@ export function useAppInit() {
       // finish — see installBeaconFlushOnHide's own comment for why this
       // needs a dedicated mechanism rather than just a faster push.
       installBeaconFlushOnHide();
+      // Ask the browser not to silently evict this app's local database
+      // under storage pressure — see persistentStorage.ts. Fire-and-forget:
+      // this is a courtesy request with no response to act on, and must
+      // never hold up the rest of startup.
+      void requestPersistentStorage();
 
       // Prefer whatever the other devices already have. Only fall back to
       // local seeding when the server was actually reached and confirmed to

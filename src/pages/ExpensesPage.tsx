@@ -20,6 +20,7 @@ import { compressImage, readFileAsDataUrl } from "../lib/image";
 import type { ExpenseLineItem, CashReturnStatus, ExpenseReport, User } from "../types";
 import { PageHeader, Card, Button, Input, Select, Badge, EmptyState } from "../components/ui";
 import { RefreshButton } from "../components/RefreshButton";
+import StorageProtectionBadge from "../components/StorageProtectionBadge";
 
 function todayStr(): string {
   return format(new Date(), "yyyy-MM-dd");
@@ -263,6 +264,7 @@ export default function ExpensesPage() {
       />
 
       <div className="p-4 max-w-2xl mx-auto space-y-4">
+        <StorageProtectionBadge />
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-coffee-800">
