@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { seedIfEmpty } from "../db/seed";
-import { installSyncHooks, pullAll, startPolling } from "../db/remoteSync";
+import { installSyncHooks, installBeaconFlushOnHide, pullAll, startPolling } from "../db/remoteSync";
 import { useSettingsStore } from "../store/settingsStore";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
@@ -17,6 +17,11 @@ export function useAppInit() {
       // Push-on-write must be armed before anything (including seeding)
       // writes to the DB, so those writes queue up for sync too.
       installSyncHooks();
+      // Catches an in-app browser (Messenger's, most notably) suspending or
+      // killing its tab mid-save, before a normal push has a chance to
+      // finish — see installBeaconFlushOnHide's own comment for why this
+      // needs a dedicated mechanism rather than just a faster push.
+      installBeaconFlushOnHide();
 
       // Prefer whatever the other devices already have. Only fall back to
       // local seeding when the server was actually reached and confirmed to

@@ -553,3 +553,59 @@ export function stopPolling(): void {
     pollTimer = null;
   }
 }
+
+let beaconHandlerInstalled = false;
+
+/**
+ * Last-resort safety net for the moment a tab is about to be backgrounded
+ * or torn down — most importantly an in-app browser (Messenger/Facebook's,
+ * among others), which can suspend or kill its webview mid-request on a
+ * weak connection, with no warning and well before the normal debounced or
+ * immediate push had a chance to finish. A plain `fetch` started right
+ * before that happens is not reliably delivered — mobile browsers can
+ * (and do) abort in-flight requests from a tab the moment it backgrounds.
+ * `navigator.sendBeacon` exists specifically for this: the browser
+ * guarantees the request is queued and sent even after the page is gone,
+ * which a normal fetch does not.
+ *
+ * This fires on `visibilitychange` (the reliable "about to background"
+ * signal on mobile) and `pagehide` (actual navigation/close), and does a
+ * best-effort blind push — current local rows, no merge, no conflict
+ * check — of every table with an unpushed write, straight past the usual
+ * debounce. sendBeacon gives no response back, so a 409 conflict can't be
+ * detected or retried here the way a normal push handles it; a blind
+ * overwrite can in rare cases clobber a near-simultaneous write from
+ * another device. That's an accepted tradeoff: the alternative is this
+ * device's own write being gone for good, which is worse.
+ */
+export function installBeaconFlushOnHide(): void {
+  if (beaconHandlerInstalled) return;
+  beaconHandlerInstalled = true;
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return;
+
+  const flush = () => {
+    for (const name of Array.from(dirtyTables)) {
+      if (LOCAL_ONLY_TABLES.has(name)) continue;
+      db.table(name)
+        .toArray()
+        .then((rows) => {
+          try {
+            const blob = new Blob([JSON.stringify({ key: name, value: rows })], {
+              type: "application/json",
+            });
+            navigator.sendBeacon(SYNC_URL, blob);
+          } catch {
+            // Best-effort only — nothing more to do if even this fails.
+          }
+        })
+        .catch(() => {
+          // Reading the table itself failed — nothing to send.
+        });
+    }
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+  window.addEventListener("pagehide", flush);
+}
