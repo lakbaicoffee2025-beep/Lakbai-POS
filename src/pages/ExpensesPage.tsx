@@ -17,6 +17,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { formatMoney } from "../lib/format";
 import { computeExpenseTotals } from "../lib/expenseMath";
 import { compressImage, readFileAsDataUrl } from "../lib/image";
+import { describeSaveError } from "../lib/errorMessages";
 import type { ExpenseLineItem, CashReturnStatus, ExpenseReport, User } from "../types";
 import { PageHeader, Card, Button, Input, Select, Badge, EmptyState } from "../components/ui";
 import { RefreshButton } from "../components/RefreshButton";
@@ -228,13 +229,7 @@ export default function ExpensesPage() {
       // reported as exactly that, repeatedly, by a staff member with no
       // way to know what actually happened. The draft is still safe either
       // way — the autosave above keeps it until this succeeds.
-      const message =
-        e instanceof DOMException && e.name === "QuotaExceededError"
-          ? "Couldn't save — this device is out of storage space. Try removing a photo from this report, or free up space on the phone, then save again."
-          : e instanceof Error
-            ? `Couldn't save: ${e.message}`
-            : "Couldn't save. Please try again.";
-      setError(message);
+      setError(describeSaveError(e));
     } finally {
       setSubmitting(false);
     }

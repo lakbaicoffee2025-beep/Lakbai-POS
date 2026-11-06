@@ -5,6 +5,7 @@ import { db } from "../../db/db";
 import { adjustIngredientStock } from "../../db/inventory";
 import { useAuthStore } from "../../store/authStore";
 import { compressImage, readFileAsDataUrl } from "../../lib/image";
+import { describeSaveError } from "../../lib/errorMessages";
 import { Button, Card, Input, Select, Badge, EmptyState } from "../../components/ui";
 
 const REASONS = ["Expired", "Dropped/Damaged", "Burnt/Overcooked", "Customer Return", "Other"];
@@ -83,7 +84,7 @@ export default function SpoilageTab() {
       const raw = await readFileAsDataUrl(file);
       setPhoto(await compressImage(raw));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not process the photo. Please try again.");
+      setError(describeSaveError(e, "Could not process the photo. Please try again."));
     } finally {
       setPhotoBusy(false);
     }
@@ -118,7 +119,7 @@ export default function SpoilageTab() {
       setPhoto(null);
       await db.spoilageDrafts.delete(currentUser.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not log the spoilage. Please try again.");
+      setError(describeSaveError(e, "Could not log the spoilage. Please try again."));
     } finally {
       setSubmitting(false);
     }
