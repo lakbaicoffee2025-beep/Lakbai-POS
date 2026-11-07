@@ -76,7 +76,18 @@ function readPersistedPending(): string[] {
 
 const dirtyTables = new Set<string>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
-let hydrating = false;
+// Which tables are mid-hydration (inside pullAll's clear()+bulkAdd()) right
+// now. Scoped per-table, not a single flag for the whole pull loop: pullAll
+// awaits one table's transaction at a time, so a single global flag held
+// "true" for the entire loop's duration would suppress markDirty() (below)
+// for a write to ANY table that lands while ANY other table is mid-transaction
+// — not just the one actually being hydrated. That write's dirty-tracking
+// timestamp would never get recorded, so the race-guard a few lines down
+// (comparing against pullStartedAt) would wrongly see "no write happened"
+// and let the hydration loop overwrite it with a stale snapshot when it
+// later reaches that table — the exact race this guard exists to prevent,
+// just reintroduced through the flag meant to protect it.
+const hydratingTables = new Set<string>();
 let hooksInstalled = false;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -208,12 +219,26 @@ async function pushTable(name: string): Promise<boolean> {
   try {
     const localRows = await db.table(name).toArray();
     let remote = await fetchRemoteEntry(name);
+    // The server's GET always returns 200 with a well-formed { rev, data }
+    // envelope, even for a key that has never been written (wrapped as
+    // { rev: 0, data: null } — see unwrapEntry in netlify/functions/sync.mjs)
+    // — so fetchRemoteEntry returning null here can only mean the request
+    // itself failed: offline, a dropped packet, a cold-start timeout, a bad
+    // response. Treating that as "this key must be new" used to let this
+    // device push localRows with no merge and no expectedRev — which skips
+    // the server's optimistic-concurrency check entirely and blindly
+    // replaces the whole table with this device's bare local snapshot,
+    // silently erasing any row another device had already synced that this
+    // device doesn't have locally yet. That's reachable from an ordinary
+    // network hiccup on ANY device's routine push, not just a flaky one, so
+    // it must abort instead: stay dirty, and let the next retry (debounced
+    // flush or the next poll) try again once the server's current state can
+    // actually be confirmed.
+    if (!remote) return false;
 
     for (let attempt = 0; attempt <= MAX_PUSH_RETRIES; attempt++) {
-      const toSend = remote ? mergeRows(name, localRows, remote.data) : localRows;
-      const body = remote
-        ? { key: name, value: toSend, expectedRev: remote.rev }
-        : { key: name, value: toSend };
+      const toSend = mergeRows(name, localRows, remote.data);
+      const body = { key: name, value: toSend, expectedRev: remote.rev };
       const res = await fetch(SYNC_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -356,7 +381,7 @@ export function installSyncHooks(): void {
   for (const table of db.tables) {
     if (LOCAL_ONLY_TABLES.has(table.name)) continue;
     const markDirty = () => {
-      if (hydrating) return;
+      if (hydratingTables.has(table.name)) return;
       lastLocalWriteAt.set(table.name, Date.now());
       dirtyTables.add(table.name);
       scheduleFlush();
@@ -369,7 +394,7 @@ export function installSyncHooks(): void {
     });
     table.hook("deleting", (primKey) => {
       markDirty();
-      if (!hydrating) markDeleted(table.name, primKey);
+      if (!hydratingTables.has(table.name)) markDeleted(table.name, primKey);
     });
   }
 }
@@ -441,34 +466,34 @@ export async function pullAll(): Promise<PullResult> {
     // look like a hang or a failure. Per-table transactions keep each lock
     // brief and scoped to just that table, and a failure on one table no
     // longer aborts ones that already committed.
-    hydrating = true;
-    try {
-      for (const name of present) {
-        // The flush above only covers writes that existed *before* the
-        // `fetch` a few lines up — it says nothing about a write that lands
-        // during that fetch's round trip (slower on a weak connection, so
-        // more likely there, not less). Without this check, a report saved
-        // in that exact window gets destroyed: clear() removes it from
-        // local storage entirely, bulkAdd() restores only the older
-        // snapshot that was fetched before it existed. Checking
-        // dirtyTables alone isn't sufficient here — that write's own
-        // 800ms debounce can flush and clear it, successfully reaching the
-        // server, well before this slower pull resolves and reaches this
-        // point, making it look "clean" even though it happened after this
-        // pull's snapshot was taken. Comparing against the actual write
-        // timestamp catches that case too; a table written to after this
-        // pull started stays untouched this round and the next pull
-        // (which fetches a fresh, current snapshot) reconciles it.
-        if ((lastLocalWriteAt.get(name) ?? 0) > pullStartedAt) continue;
-        const rows = remote[name]!.data as unknown[];
+    for (const name of present) {
+      // The flush above only covers writes that existed *before* the
+      // `fetch` a few lines up — it says nothing about a write that lands
+      // during that fetch's round trip (slower on a weak connection, so
+      // more likely there, not less). Without this check, a report saved
+      // in that exact window gets destroyed: clear() removes it from
+      // local storage entirely, bulkAdd() restores only the older
+      // snapshot that was fetched before it existed. Checking
+      // dirtyTables alone isn't sufficient here — that write's own
+      // 800ms debounce can flush and clear it, successfully reaching the
+      // server, well before this slower pull resolves and reaches this
+      // point, making it look "clean" even though it happened after this
+      // pull's snapshot was taken. Comparing against the actual write
+      // timestamp catches that case too; a table written to after this
+      // pull started stays untouched this round and the next pull
+      // (which fetches a fresh, current snapshot) reconciles it.
+      if ((lastLocalWriteAt.get(name) ?? 0) > pullStartedAt) continue;
+      const rows = remote[name]!.data as unknown[];
+      hydratingTables.add(name);
+      try {
         await db.transaction("rw", db.table(name), async () => {
           if ((lastLocalWriteAt.get(name) ?? 0) > pullStartedAt) return;
           await db.table(name).clear();
           if (rows.length > 0) await db.table(name).bulkAdd(rows);
         });
+      } finally {
+        hydratingTables.delete(name);
       }
-    } finally {
-      hydrating = false;
     }
 
     // Settings is cached in a plain Zustand store (not a live query), so an
@@ -504,7 +529,22 @@ export async function pushAll(): Promise<void> {
  * reaches the server.
  */
 export async function pushTables(names: string[]): Promise<void> {
-  await Promise.all(names.map(pushTable));
+  // Re-mark any table that failed to push as dirty (same as flushNow does)
+  // instead of just discarding the failure — otherwise a table whose dirty
+  // flag got suppressed for an unrelated reason (e.g. landing mid-hydration,
+  // see hydratingTables above) has no remaining fallback to retry it once
+  // this immediate push also fails.
+  const results = await Promise.all(
+    names.map(async (name) => [name, await pushTable(name)] as const)
+  );
+  let anyFailed = false;
+  for (const [name, ok] of results) {
+    if (!ok) {
+      dirtyTables.add(name);
+      anyFailed = true;
+    }
+  }
+  if (anyFailed) persistPending();
 }
 
 /**
@@ -622,28 +662,64 @@ export function installBeaconFlushOnHide(): void {
   beaconHandlerInstalled = true;
   if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return;
 
+  // How long to give a normal, merged, conflict-safe push (pushTable) to
+  // finish before giving up on it and falling back to the raw beacon below.
+  // This was originally missing entirely — every call to flush() went
+  // straight to the raw beacon for every currently-dirty table, every
+  // single time the tab was hidden, regardless of whether a safe push would
+  // have worked fine. Since staff background their phone constantly
+  // (a notification, the screen lock, switching to the camera to take a
+  // receipt photo) while a table can easily still be dirty from an
+  // unrelated, already-finished debounce window, that made the "last
+  // resort" raw overwrite a routine, frequent event rather than an actual
+  // last resort — and confirmed (via a local test against a simulated
+  // dropped request) that it can silently erase another device's
+  // already-synced rows even when the network is otherwise completely
+  // fine. Racing the safe path first means the raw beacon only fires when
+  // the connection or the page itself is genuinely too far gone to
+  // complete one small GET+POST in time — the actual case sendBeacon
+  // exists for.
+  const FLUSH_RACE_MS = 1200;
+
   const flush = () => {
     for (const name of Array.from(dirtyTables)) {
       if (LOCAL_ONLY_TABLES.has(name)) continue;
-      db.table(name)
-        .toArray()
-        .then((rows) => {
-          if (sendBeaconPayload(name, rows)) return;
-          // sendBeacon returned false — the browser refused to even queue
-          // this request because the payload is too large (confirmed: a
-          // report with several receipt photos attached produces a payload
-          // well past the browser's beacon size limit, and the original
-          // version of this flush silently did nothing in that case —
-          // meaning NOT EVEN the money amounts got out, only reports
-          // without photos, or with just one or two, ever made it through
-          // this path). Retry with every embedded photo stripped out, so
-          // the numbers that actually matter for reconciliation —
-          // descriptions, amounts, dates — still reach the server under
-          // this emergency exit. The photos themselves are untouched in
-          // local storage and go out normally (merged, not blindly
-          // replaced, so they're restored server-side too) the next time
-          // this device is foregrounded and the regular push runs.
-          sendBeaconPayload(name, stripPhotoData(rows) as unknown[]);
+      const safePush = pushTable(name).then((ok) => (ok ? "pushed" : "failed"));
+      const timeout = new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), FLUSH_RACE_MS)
+      );
+      Promise.race([safePush, timeout])
+        .then((outcome) => {
+          if (outcome === "pushed") {
+            // Merged and confirmed by the server already — nothing left to
+            // beacon. pushTable itself doesn't touch dirtyTables, so clear
+            // it here (mirrors what flushNow does on a successful push).
+            dirtyTables.delete(name);
+            persistPending();
+            return;
+          }
+          // Either pushTable reported a real failure (offline, request
+          // rejected) or it simply hasn't resolved within the race window —
+          // in both cases, fall back to the blind, unmerged, no-expectedRev
+          // beacon push as the true last resort.
+          return db.table(name).toArray().then((rows) => {
+            if (sendBeaconPayload(name, rows)) return;
+            // sendBeacon returned false — the browser refused to even queue
+            // this request because the payload is too large (confirmed: a
+            // report with several receipt photos attached produces a payload
+            // well past the browser's beacon size limit, and the original
+            // version of this flush silently did nothing in that case —
+            // meaning NOT EVEN the money amounts got out, only reports
+            // without photos, or with just one or two, ever made it through
+            // this path). Retry with every embedded photo stripped out, so
+            // the numbers that actually matter for reconciliation —
+            // descriptions, amounts, dates — still reach the server under
+            // this emergency exit. The photos themselves are untouched in
+            // local storage and go out normally (merged, not blindly
+            // replaced, so they're restored server-side too) the next time
+            // this device is foregrounded and the regular push runs.
+            sendBeaconPayload(name, stripPhotoData(rows) as unknown[]);
+          });
         })
         .catch(() => {
           // Reading the table itself failed — nothing to send.

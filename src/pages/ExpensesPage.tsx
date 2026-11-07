@@ -161,16 +161,20 @@ export default function ExpensesPage() {
 
   async function handlePhoto(id: string, file: File | undefined) {
     if (!file) return;
-    const raw = await readFileAsDataUrl(file);
-    // Smaller/lower-quality than before (was 1000px/0.82) — a receipt only
-    // needs to stay legible, and a report with several photos attached can
-    // otherwise embed a megabyte-plus of image data in one record, which
-    // on a phone that's low on storage is enough on its own to make the
-    // save throw (now surfaced instead of silently failing, see
-    // handleSubmit) and is also just slower to push over a weak
-    // connection either way.
-    const compressed = await compressImage(raw, 700, 0.6);
-    updateItem(id, { photoDataUrl: compressed });
+    try {
+      const raw = await readFileAsDataUrl(file);
+      // Smaller/lower-quality than before (was 1000px/0.82) — a receipt only
+      // needs to stay legible, and a report with several photos attached can
+      // otherwise embed a megabyte-plus of image data in one record, which
+      // on a phone that's low on storage is enough on its own to make the
+      // save throw (now surfaced instead of silently failing, see
+      // handleSubmit) and is also just slower to push over a weak
+      // connection either way.
+      const compressed = await compressImage(raw, 700, 0.6);
+      updateItem(id, { photoDataUrl: compressed });
+    } catch (e) {
+      setError(describeSaveError(e, "Could not attach that photo. Please try again."));
+    }
   }
 
   function applyCarryover() {
