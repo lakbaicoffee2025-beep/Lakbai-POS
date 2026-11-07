@@ -557,6 +557,45 @@ export function stopPolling(): void {
 let beaconHandlerInstalled = false;
 
 /**
+ * Removes every embedded `photoDataUrl` (base64 receipt/waste photos,
+ * potentially tens to hundreds of KB each) from a deep copy of the given
+ * rows, recursing into arrays and nested objects (an ExpenseReport's
+ * `items[].photoDataUrl`, as well as a plain Expense or InventoryMovement's
+ * own top-level `photoDataUrl`). Used only as a last-resort fallback when a
+ * beacon payload including photos was too large for the browser to send at
+ * all — stripping them is what makes it possible to get the actual
+ * financial data out instead of losing everything.
+ */
+function stripPhotoData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripPhotoData);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "photoDataUrl") continue;
+      out[k] = stripPhotoData(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Wraps `navigator.sendBeacon`, returning whether the browser actually
+ * accepted and queued the request — sendBeacon fails silently (just
+ * returns `false`) rather than throwing when a payload is too large for it
+ * to queue, so that return value is the only signal a caller gets that
+ * nothing was sent at all.
+ */
+function sendBeaconPayload(key: string, value: unknown): boolean {
+  try {
+    const blob = new Blob([JSON.stringify({ key, value })], { type: "application/json" });
+    return navigator.sendBeacon(SYNC_URL, blob);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Last-resort safety net for the moment a tab is about to be backgrounded
  * or torn down — most importantly an in-app browser (Messenger/Facebook's,
  * among others), which can suspend or kill its webview mid-request on a
@@ -589,14 +628,22 @@ export function installBeaconFlushOnHide(): void {
       db.table(name)
         .toArray()
         .then((rows) => {
-          try {
-            const blob = new Blob([JSON.stringify({ key: name, value: rows })], {
-              type: "application/json",
-            });
-            navigator.sendBeacon(SYNC_URL, blob);
-          } catch {
-            // Best-effort only — nothing more to do if even this fails.
-          }
+          if (sendBeaconPayload(name, rows)) return;
+          // sendBeacon returned false — the browser refused to even queue
+          // this request because the payload is too large (confirmed: a
+          // report with several receipt photos attached produces a payload
+          // well past the browser's beacon size limit, and the original
+          // version of this flush silently did nothing in that case —
+          // meaning NOT EVEN the money amounts got out, only reports
+          // without photos, or with just one or two, ever made it through
+          // this path). Retry with every embedded photo stripped out, so
+          // the numbers that actually matter for reconciliation —
+          // descriptions, amounts, dates — still reach the server under
+          // this emergency exit. The photos themselves are untouched in
+          // local storage and go out normally (merged, not blindly
+          // replaced, so they're restored server-side too) the next time
+          // this device is foregrounded and the regular push runs.
+          sendBeaconPayload(name, stripPhotoData(rows) as unknown[]);
         })
         .catch(() => {
           // Reading the table itself failed — nothing to send.
