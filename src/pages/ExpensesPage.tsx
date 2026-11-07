@@ -51,6 +51,7 @@ export default function ExpensesPage() {
   const [returnedTo, setReturnedTo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [carryover, setCarryover] = useState<{ amount: number; reports: ExpenseReport[] } | null>(null);
   // Report IDs whose leftover cash was just folded into cashReceived below
@@ -185,6 +186,7 @@ export default function ExpensesPage() {
 
   async function handleSubmit() {
     setError(null);
+    setJustSaved(false);
     if (!date) {
       setError("Select a date.");
       return;
@@ -218,6 +220,12 @@ export default function ExpensesPage() {
         await markReportsCarriedForward(appliedCarryoverReportIds);
       }
       resetForm();
+      // Explicit, impossible-to-miss confirmation — the whole point being
+      // asked for here is that "did it actually save?" should never be a
+      // guess. Stays up long enough to register, then clears on its own so
+      // it doesn't linger over the next report being started.
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
     } catch (e) {
       // Without this, any failure here — most plausibly running out of
       // local storage quota on a phone that's low on space, since a report
@@ -449,9 +457,18 @@ export default function ExpensesPage() {
             </div>
           )}
 
+          {justSaved && (
+            <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-medium">
+              ✓ Saved successfully.
+            </div>
+          )}
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 space-y-1">
+              <div>{error}</div>
+              <div className="font-medium">
+                Nothing was lost — everything you entered is still right here. Fix this if needed,
+                then tap Save again.
+              </div>
             </div>
           )}
 
