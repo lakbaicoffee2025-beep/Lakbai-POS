@@ -1,10 +1,44 @@
 import { useEffect, useState } from "react";
+import { format, subDays } from "date-fns";
 import { seedIfEmpty } from "../db/seed";
 import { installSyncHooks, installBeaconFlushOnHide, pullAll, startPolling } from "../db/remoteSync";
+import { clearOldExpensePhotos } from "../db/expenseReports";
 import { requestPersistentStorage } from "../lib/persistentStorage";
 import { useSettingsStore } from "../store/settingsStore";
 import { useAuthStore } from "../store/authStore";
 import { useShiftStore } from "../store/shiftStore";
+import type { Role } from "../types";
+
+// Receipt/waste photos are embedded as base64 directly in the expenseReports
+// and expenses tables, and every sync push transfers each of those tables'
+// ENTIRE history in one shot (see remoteSync.ts) — so with no cleanup, every
+// push gets slower and more likely to time out on a weak connection as more
+// photos pile up over months, regardless of how small today's own report is.
+// A manual "Clear Photos" button already existed for this (Settings-adjacent,
+// on the Expenses page), but only ever ran if an admin remembered to click
+// it. Running it automatically, admin-only and throttled to once a day,
+// keeps the synced payload from silently growing without bound in the
+// common case where nobody does.
+const AUTO_PHOTO_TRIM_KEY = "lakbai-pos-last-photo-trim";
+const AUTO_PHOTO_TRIM_DAYS = 30;
+const AUTO_PHOTO_TRIM_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function maybeAutoTrimOldPhotos(role: Role | undefined): void {
+  if (role !== "admin") return;
+  try {
+    const last = Number(localStorage.getItem(AUTO_PHOTO_TRIM_KEY) ?? "0");
+    if (Date.now() - last < AUTO_PHOTO_TRIM_INTERVAL_MS) return;
+    localStorage.setItem(AUTO_PHOTO_TRIM_KEY, String(Date.now()));
+  } catch {
+    // Private browsing / storage disabled — just skip the throttle rather
+    // than either spamming this on every boot or never running at all.
+    return;
+  }
+  const cutoff = format(subDays(new Date(), AUTO_PHOTO_TRIM_DAYS), "yyyy-MM-dd");
+  clearOldExpensePhotos(cutoff).catch(() => {
+    // Best-effort housekeeping — never let a failure here affect the app.
+  });
+}
 
 export function useAppInit() {
   const [ready, setReady] = useState(false);
@@ -64,6 +98,7 @@ export function useAppInit() {
       if (currentUser) {
         await refreshCurrentUser();
         await loadActiveShift(currentUser.id);
+        maybeAutoTrimOldPhotos(currentUser.role);
       }
       setReady(true);
     })();

@@ -545,8 +545,12 @@ export default function ExpensesPage() {
                 card never showed up here under Report History. This finds any of those and
                 rebuilds the missing report from its surviving line items. Cash Received/ATM
                 Withdrawal weren't stored on the line items themselves, so rebuilt reports start
-                those at 0 — re-enter the real amount via Edit afterward. Safe to run more than
-                once; it only creates what's actually missing.
+                those at 0 — re-enter the real amount via Edit afterward. Rebuilt reports also
+                can't recover receipt photos. It refreshes from the server before checking and
+                skips anything saved in the last 15 minutes, so it won't mistake a report that's
+                still syncing for one that's actually missing — if a report you expect isn't
+                found yet, wait a few minutes and try again instead of re-running it right away.
+                Safe to run more than once; it only creates what's actually missing.
               </p>
             </div>
             <Button variant="secondary" disabled={repairing} onClick={handleRepairReports}>
